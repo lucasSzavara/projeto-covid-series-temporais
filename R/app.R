@@ -1,6 +1,6 @@
 # Pacotes
-install.packages("pacman")
-pacman::p_load(shiny, shinydashboard, COVID19, fpp3, plotly, forecast)
+#install.packages("pacman")
+pacman::p_load(shiny, shinydashboard, shinythemes, COVID19, fpp3, plotly, forecast)
 
 #------------------------------------------------------------
 
@@ -18,13 +18,9 @@ df_confirmed$estado_cidade <- paste(df_confirmed$administrative_area_level_2, df
 
 # Selecionadores
 
-nivel <- c(3)
-
 est_city <- unique(df_confirmed$estado_cidade)
 
-variavel <- c("confirmed")
-
-periodo <- c("Teste")
+inicio <- c("Analisar apartir de X confirmados")
 
 #------------------------------------------------------------
 
@@ -51,7 +47,7 @@ ui <- dashboardPage(
       menuItem("Visualizações", tabName = "vis", icon = icon("th")),
       menuItem("Evolução", tabName = "ev", icon = icon("chart-line")),
       menuItem("Efeito de medidas políticas", tabName = "efeito",icon = icon("globe")),
-      menuItem("índices", tabName = "ind",icon = icon("signal"))
+      menuItem("Índices", tabName = "ind",icon = icon("signal"))
     )
   ),
   dashboardBody(
@@ -64,13 +60,12 @@ ui <- dashboardPage(
       tabItem(tabName = "vis",
               column(width = 2, 
                      box(width = NULL, status = "warning", solidHeader = TRUE,
-                         selectInput("niv", "Nível", nivel)),
-                     box(width = NULL, status = "warning", solidHeader = TRUE,
                          selectInput("e_c", "Estado/Cidade", est_city)),
                      box(width = NULL, status = "warning", solidHeader = TRUE,
-                         selectInput("var", "Variável", variavel)),
+                         sliderInput("date_slider", "Período", min = min(dados$date), max = max(dados$date), 
+                                     value = c(min(dados$date), max(dados$date)))),
                      box(width = NULL, status = "warning", solidHeader = TRUE,
-                         selectInput("per", "Período", periodo))),
+                         selectInput("inicio", "Data de início do gráfico", inicio))),
               column(width = 10, 
                      box(width = NULL, solidHeader = TRUE, 
                          plotlyOutput("grafico_series", height = 500)))
@@ -100,7 +95,9 @@ server <- function(input, output) {
   output$grafico_series <- renderPlotly({
     state_city <- input$e_c
     df_cidade <- df_confirmed %>%
-      filter(estado_cidade == state_city)
+      filter(estado_cidade == state_city,
+             date >= input$date_slider[1],
+             date <= input$date_slider[2])
     
     df_cidade <- corrige(df_cidade,"confirmed")
     
@@ -109,7 +106,7 @@ server <- function(input, output) {
       mutate(confirmed = diff(df_cidade$confirmed)) %>%
       ggplot(aes(x = date, y = confirmed)) +
       geom_line(color = "blue") +
-      labs(title = paste("Casos confirmados em",state_city), x = "Data", y = "Confirmados") +
+      labs(title = paste("Casos confirmados em",state_city), x = "Data", y = "Novos Confirmados Diários") +
       theme_minimal() +
       scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
     
