@@ -6,19 +6,16 @@ pacman::p_load(shiny, shinydashboard, shinythemes, COVID19, fpp3, plotly, foreca
 
 # Dados para teste
 
-dados <- read.csv("df_capitais.csv")
+dados <- covid19(country = c('Brazil'), level=2, verbose=F)
 dados$date <- as.Date(dados$date, format = "%Y-%m-%d")
 # Filtragem dos dados
 df_confirmed <- dados[,c("id","date","confirmed","administrative_area_level_2","administrative_area_level_3")]
 df_confirmed <- na.omit(df_confirmed)
-
-df_confirmed$estado_cidade <- paste(df_confirmed$administrative_area_level_2, df_confirmed$administrative_area_level_3, sep = "/")
-
 #------------------------------------------------------------
 
 # Selecionadores
 
-est_city <- unique(df_confirmed$estado_cidade)
+est <- unique(df_confirmed$administrative_area_level_2)
 
 inicio <- c("Analisar apartir de X confirmados")
 
@@ -44,8 +41,8 @@ ui <- dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       menuItem("Visão Geral", tabName = "vg", icon = icon("virus")),
-      menuItem("Visualizações", tabName = "vis", icon = icon("th")),
-      menuItem("Evolução", tabName = "ev", icon = icon("chart-line")),
+      menuItem("Evoulção", tabName = "vis", icon = icon("th")),
+      menuItem("Diferenças geográficas", tabName = "ev", icon = icon("chart-line")),
       menuItem("Efeito de medidas políticas", tabName = "efeito",icon = icon("globe")),
       menuItem("Índices", tabName = "ind",icon = icon("signal"))
     )
@@ -60,7 +57,8 @@ ui <- dashboardPage(
       tabItem(tabName = "vis",
               column(width = 2, 
                      box(width = NULL, status = "warning", solidHeader = TRUE,
-                         selectInput("e_c", "Estado/Cidade", est_city)),
+                         selectInput("estado_filtro", "Estado", est)),
+                     uiOutput('html_filtro_cidade'),
                      box(width = NULL, status = "warning", solidHeader = TRUE,
                          sliderInput("date_slider", "Período", min = min(dados$date), max = max(dados$date), 
                                      value = c(min(dados$date), max(dados$date)))),
@@ -93,9 +91,10 @@ server <- function(input, output) {
   
   # Lógica ou ações específicas para cada página podem ser adicionadas aqui
   output$grafico_series <- renderPlotly({
-    state_city <- input$e_c
+    est <- input$est
+    print(est)
     df_cidade <- df_confirmed %>%
-      filter(estado_cidade == state_city,
+      filter(administrative_area_level_2 == est,
              date >= input$date_slider[1],
              date <= input$date_slider[2])
     
