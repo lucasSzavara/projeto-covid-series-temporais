@@ -1,9 +1,6 @@
 # Pacotes
-library(shiny)
-library(shinydashboard)
-library(ggplot2)
-library(plotly)
-library(dplyr)
+install.packages("pacman")
+pacman::p_load(shiny, shinydashboard, COVID19, fpp3, plotly, forecast)
 
 #------------------------------------------------------------
 
