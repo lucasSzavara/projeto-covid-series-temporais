@@ -6,7 +6,7 @@ pacman::p_load(shiny, shinydashboard, shinythemes, COVID19, fpp3, plotly, foreca
 
 # Dados para teste
 
-# dados <- covid19(country = c('Brazil'), level=2, verbose=F)
+dados_estados <- covid19(country = c('Brazil'), level=2, verbose=F)
 # dados$date <- as.Date(dados$date, format = "%Y-%m-%d")
 locais <- read.csv('estados_cidades.csv')
 # Filtragem dos dados
@@ -24,7 +24,9 @@ inicio <- c("Analisar apartir de X confirmados")
 
 # Funções
 
-corrige <- function(df,variavel){
+corrige <- function(df_, variavel){
+  df <- df_
+  df[is.na(df)] <- 0
   for(i in 2:length(df[[variavel]])){
     if(df[i,variavel] < df[i-1,variavel]){
       df[i,variavel] <- df[i-1,variavel]
@@ -60,12 +62,11 @@ ui <- dashboardPage(
                      box(width = NULL, status = "warning", solidHeader = TRUE,
                          selectInput("e_c", "Estado", est, selectize = TRUE)),
                      uiOutput('html_filtro_cidade'),
-                     # box(width = NULL, status = "warning", solidHeader = TRUE,
-                     #     sliderInput("date_slider", "Período", min = min(dados$date), max = max(dados$date), 
-                     #                 value = c(min(dados$date), max(dados$date)))),
-                     # box(width = NULL, status = "warning", solidHeader = TRUE,
-                     #     selectInput("inicio", "Data de início do gráfico", inicio))),
-              ),
+                     box(width = NULL, status = "warning", solidHeader = TRUE,
+                         sliderInput("date_slider", "Período", min = min(dados_estados$date), max = max(dados_estados$date),
+                                     value = c(min(dados_estados$date), max(dados_estados$date)))),
+                     box(width = NULL, status = "warning", solidHeader = TRUE,
+                         selectInput("inicio", "Data de início do gráfico", inicio))),
               column(width = 10, 
                      box(width = NULL, solidHeader = TRUE, 
                          plotlyOutput("grafico_series", height = 500)))
@@ -89,36 +90,43 @@ ui <- dashboardPage(
 #------------------------------------------------------------
 
 # Defina o servidor
-server <- function(input, output) {
+server <- function(input, output, session) {
   
   # Lógica ou ações específicas para cada página podem ser adicionadas aqui
   
+  print('recarregando')
+  
   output$html_filtro_cidade <- renderUI({
-    est <- input$estado_filtro
+    est <- input$e_c
     if(!(is.null(est) || est == '')) {
-      estados_cidades <- read.csv('estados_cidades.csv')
-      cidades <- unique(estados_cidades[estados_cidades$estados == est, ]$cidades)
-      print(length(cidades))
-      print(est)
+      cidades <- unique(locais[locais$estados == est, ]$cidades)
       return(box(width = NULL, status = "warning", solidHeader = TRUE,
           selectInput("cidade_filtro", "Cidade", c('', cidades), selectize = TRUE)))
     }
   })
+  observe({
+    est <- input$e_c
+    updateSelectInput(session, 'cidade_filtro', selected='')
+  })
   output$grafico_series <- renderPlotly({
-    est <- input$estado_filtro
+    est <- input$e_c
     cid <- input$cidade_filtro
+    print(est)
+    print(cid)
     if(is.null(est) || est == '') {
-      df_cidade <- covid19(country = c('Brazil'), level=1, verbose=F) # %>% filter(date >= input$date_slider[1],
-                                                        #           date <= input$date_slider[2])
+      df_cidade <- covid19(country = c('Brazil'), level=1, verbose=F)  %>% filter(date >= input$date_slider[1],
+                                                                  date <= input$date_slider[2])
     } else {
-      if(!(is.null(cid) || cid == '')) {
-        df_cidade <- read.csv(paste('dados/dados', est, cid, '.csv'))
+      if(!(is.null(cid) || cid == '') && file.exists(paste('dados/dados', est, cid, '.csv'))) {
+          df_cidade <- read.csv(paste('dados/dados', est, cid, '.csv')) %>% filter(date >= input$date_slider[1],
+                    date <= input$date_slider[2])
       }
       else {
-        df_cidade <- covid19(country = c('Brazil'), level=2, verbose=F) %>% filter(administrative_area_level_2 == est)
+        df_cidade <- dados_estados %>% filter(administrative_area_level_2 == est) %>% filter(date >= input$date_slider[1],
+                  date <= input$date_slider[2])
       }
     }
-    
+    df_cidade$date <- as.Date(df_cidade$date)
     df_cidade <- corrige(df_cidade,"confirmed")
     
     p <- df_cidade %>%
