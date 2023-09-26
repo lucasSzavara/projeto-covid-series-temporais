@@ -36,6 +36,40 @@ corrige <- function(df_, variavel){
   return(df)
 }
 
+grafico_sazonal <- function(datas, serie, titulo_grafico, eixo_x, eixo_y, periodo) {
+  dados = tsibble(
+    data = datas,
+    y = serie,
+    index = data
+  )
+  
+  dados <- dados %>%
+    fill_gaps(data, .full=FALSE)
+  
+  # Plotando a série temporal
+  G =
+    dados %>%
+    gg_season(y, period=periodo) +
+    labs(
+      y = eixo_y,
+      x = eixo_x,
+      title = titulo_grafico,
+      labels = "right"
+    ) +
+    guides(color = guide_legend(title = "Legenda"))
+  interactive_plot <- ggplotly(G, tooltip = c("all"))
+  interactive_plot <- interactive_plot %>%
+    layout(showlegend = T)
+  fig <- plotly_build(interactive_plot)
+  hover <- c()
+  for(i in 1:length(fig$x$data)){
+    fig$x$data[[i]]$hovertemplate <- c(hover, paste('<b>', eixo_y, '</b>: %{y:,.0f}',
+                                                    '<b>Data</b>', datas[year(datas)==str_sub(fig$x$data[[i]]$text[1], start=-4)],
+                                                    '<extra></extra>'
+    ))
+  }
+  return(fig)
+}
 
 #------------------------------------------------------------
 
@@ -76,6 +110,14 @@ ui <- dashboardPage(
               ),
               
               fluidRow(
+                column(width = 2
+                ),
+                column(width = 10, 
+                       box(width = NULL, solidHeader = TRUE, 
+                           plotlyOutput("grafico_saz", height = 500)))
+              ),
+              
+              fluidRow(
                 h2(" 2) Mortalidade"),
                 column(width = 2
                 ),
@@ -85,13 +127,29 @@ ui <- dashboardPage(
               ),
               
               fluidRow(
+                column(width = 2
+                ),
+                column(width = 10, 
+                       box(width = NULL, solidHeader = TRUE, 
+                           plotlyOutput("grafico_saz1", height = 500)))
+              ),
+              
+              fluidRow(
                 h2(" 3) Doses de Vacinas administradas"),
                 column(width = 2
                 ),
                 column(width = 10, 
                        box(width = NULL, solidHeader = TRUE, 
                            plotlyOutput("grafico_series2", height = 500)))
-              )
+              ),
+              
+              fluidRow(
+                column(width = 2
+                ),
+                column(width = 10, 
+                       box(width = NULL, solidHeader = TRUE, 
+                           plotlyOutput("grafico_saz2", height = 500)))
+              ),
       ),
       tabItem("ev",
               h2("Conteúdo da Página 3"),
@@ -166,6 +224,36 @@ server <- function(input, output, session) {
     return(fig)
   })
   
+  output$grafico_saz <- renderPlotly({
+    est <- input$e_c
+    cid <- input$cidade_filtro
+    print(est)
+    print(cid)
+    if(is.null(est) || est == '') {
+      df_cidade <- covid19(country = c('Brazil'), level=1, verbose=F)  %>% filter(date >= input$date_slider[1],
+                                                                                  date <= input$date_slider[2])
+    } else {
+      if(!(is.null(cid) || cid == '') && file.exists(paste('dados/dados', est, cid, '.csv'))) {
+        df_cidade <- read.csv(paste('dados/dados', est, cid, '.csv')) %>% filter(date >= input$date_slider[1],
+                                                                                 date <= input$date_slider[2])
+      }
+      else {
+        df_cidade <- dados_estados %>% filter(administrative_area_level_2 == est) %>% filter(date >= input$date_slider[1],
+                                                                                             date <= input$date_slider[2])
+      }
+    }
+    df_cidade$date <- as.Date(df_cidade$date)
+    df_cidade <- corrige(df_cidade,"confirmed")
+    
+    df_cidade <- df_cidade %>%
+      slice(-1) %>%
+      mutate(confirmed = diff(df_cidade$confirmed))
+    
+    p <- grafico_sazonal(df_cidade$date,df_cidade$confirmed,"Casos confirmados em anos sucessivos","Data","Novos confirmados","year")
+    
+    return(p)
+  })
+  
   
   output$grafico_series1 <- renderPlotly({
     est <- input$e_c
@@ -193,13 +281,45 @@ server <- function(input, output, session) {
       mutate(deaths = diff(df_cidade$deaths)) %>%
       ggplot(aes(x = date, y = deaths)) +
       geom_line(color = "red") +
-      labs(title = paste("Casos de mortalidade em", cid, ', ', est), x = "Data", y = "Número de Mortes Diárias") +
+      labs(title = paste("Número de mortos em", cid, ', ', est), x = "Data", y = "Número de Mortes Diárias") +
       theme_minimal() +
       scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
     
     fig <- ggplotly(p)
     return(fig)
   })
+  
+  
+  output$grafico_saz1 <- renderPlotly({
+    est <- input$e_c
+    cid <- input$cidade_filtro
+    print(est)
+    print(cid)
+    if(is.null(est) || est == '') {
+      df_cidade <- covid19(country = c('Brazil'), level=1, verbose=F)  %>% filter(date >= input$date_slider[1],
+                                                                                  date <= input$date_slider[2])
+    } else {
+      if(!(is.null(cid) || cid == '') && file.exists(paste('dados/dados', est, cid, '.csv'))) {
+        df_cidade <- read.csv(paste('dados/dados', est, cid, '.csv')) %>% filter(date >= input$date_slider[1],
+                                                                                 date <= input$date_slider[2])
+      }
+      else {
+        df_cidade <- dados_estados %>% filter(administrative_area_level_2 == est) %>% filter(date >= input$date_slider[1],
+                                                                                             date <= input$date_slider[2])
+      }
+    }
+    df_cidade$date <- as.Date(df_cidade$date)
+    df_cidade <- corrige(df_cidade,"deaths")
+    
+    df_cidade <- df_cidade %>%
+      slice(-1) %>%
+      mutate(deaths = diff(df_cidade$deaths))
+    
+    p <- grafico_sazonal(df_cidade$date,df_cidade$deaths,"Número de mortos em anos sucessivos","Data","Mortes","year")
+    
+    return(p)
+  })
+  
   
   output$grafico_series2 <- renderPlotly({
     est <- input$e_c
@@ -235,6 +355,35 @@ server <- function(input, output, session) {
     return(fig)
   })
   
+  output$grafico_saz2 <- renderPlotly({
+    est <- input$e_c
+    cid <- input$cidade_filtro
+    print(est)
+    print(cid)
+    if(is.null(est) || est == '') {
+      df_cidade <- covid19(country = c('Brazil'), level=1, verbose=F)  %>% filter(date >= input$date_slider[1],
+                                                                                  date <= input$date_slider[2])
+    } else {
+      if(!(is.null(cid) || cid == '') && file.exists(paste('dados/dados', est, cid, '.csv'))) {
+        df_cidade <- read.csv(paste('dados/dados', est, cid, '.csv')) %>% filter(date >= input$date_slider[1],
+                                                                                 date <= input$date_slider[2])
+      }
+      else {
+        df_cidade <- dados_estados %>% filter(administrative_area_level_2 == est) %>% filter(date >= input$date_slider[1],
+                                                                                             date <= input$date_slider[2])
+      }
+    }
+    df_cidade$date <- as.Date(df_cidade$date)
+    df_cidade <- corrige(df_cidade,"vaccines")
+    
+    df_cidade <- df_cidade %>%
+      slice(-1) %>%
+      mutate(vaccines = diff(df_cidade$vaccines))
+    
+    p <- grafico_sazonal(df_cidade$date,df_cidade$vaccines,"Doses de vacinas administradas em anos sucessivos","Data","Doses de vacinas","year")
+    
+    return(p)
+  })
   
 }
 
