@@ -1,6 +1,6 @@
 # Pacotes
 #install.packages("pacman")
-pacman::p_load(shiny, shinydashboard, shinythemes, COVID19, fpp3, plotly, forecast)
+pacman::p_load(shiny, shinydashboard, shinythemes, COVID19, fpp3, plotly, forecast, stringr)
 
 
 #------------------------------------------------------------
