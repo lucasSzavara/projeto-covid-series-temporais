@@ -80,7 +80,7 @@ ui <- dashboardPage(
     sidebarMenu(
       menuItem("Visão Geral", tabName = "vg", icon = icon("virus")),
       menuItem("Evolução", tabName = "vis", icon = icon("th")),
-      menuItem("Diferenças geográficas", tabName = "ev", icon = icon("chart-line")),
+      menuItem("Diferenças geográficas", tabName = "dg", icon = icon("chart-line")),
       menuItem("Efeito de medidas políticas", tabName = "efeito",icon = icon("globe")),
       menuItem("Índices", tabName = "ind",icon = icon("signal"))
     )
@@ -151,8 +151,25 @@ ui <- dashboardPage(
                            plotlyOutput("grafico_saz2", height = 500)))
               ),
       ),
-      tabItem("ev",
-              h2("Conteúdo da Página 3"),
+      tabItem("dg",
+              fluidRow(
+                h2("1) Doses de Vacinas administradas em duas áreas administrativas"),
+                column(width = 2, 
+                       box(width = NULL, status = "warning", solidHeader = TRUE,
+                           selectInput("e_c1", "Estado1", est, selectize = TRUE),
+                           uiOutput('html_filtro_cidade1')),
+                       box(width = NULL, status = "warning", solidHeader = TRUE,
+                           selectInput("e_c2", "Estado2", est, selectize = TRUE),
+                           uiOutput('html_filtro_cidade2')),
+                       box(width = NULL, status = "warning", solidHeader = TRUE,
+                           sliderInput("data_slider1", "Período", min = min(dados_estados$date), max = max(dados_estados$date),
+                                       value = c(min(dados_estados$date), max(dados_estados$date)))),
+                       box(width = NULL, status = "warning", solidHeader = TRUE,
+                           selectInput("inicio1", "Data de início do gráfico", inicio))),
+                column(width = 10, 
+                       box(width = NULL, solidHeader = TRUE, 
+                           plotlyOutput("grafico_series_1e2", height = 500)))
+              ),
               # Adicione elementos específicos para a Página 3 aqui
       ),
       tabItem("efeito",
@@ -175,6 +192,7 @@ server <- function(input, output, session) {
   # Lógica ou ações específicas para cada página podem ser adicionadas aqui
   
   print('recarregando')
+  #================================================================== EVOLUÇÃO
   
   output$html_filtro_cidade <- renderUI({
     est <- input$e_c
@@ -384,6 +402,123 @@ server <- function(input, output, session) {
     
     return(p)
   })
+  
+  #================================================================== END: EVOLUÇÃO
+  
+  #================================================================== DIFERENÇAS GEOGRÁFICAS
+  
+  output$html_filtro_cidade1 <- renderUI({
+    est <- input$e_c1
+    if(!(is.null(est) || est == '')) {
+      cidades <- unique(locais[locais$estados == est, ]$cidades)
+      return(box(width = NULL, status = "warning", solidHeader = TRUE,
+                 selectInput("cidade_filtro1", "Cidade 1", c('', cidades), selectize = TRUE)))
+    }
+  })
+  observe({
+    est <- input$e_c1
+    updateSelectInput(session, 'cidade_filtro1', selected='')
+  })
+  
+  output$html_filtro_cidade2 <- renderUI({
+    est <- input$e_c2
+    if(!(is.null(est) || est == '')) {
+      cidades <- unique(locais[locais$estados == est, ]$cidades)
+      return(box(width = NULL, status = "warning", solidHeader = TRUE,
+                 selectInput("cidade_filtro2", "Cidade 2", c('', cidades), selectize = TRUE)))
+    }
+  })
+  observe({
+    est <- input$e_c2
+    updateSelectInput(session, 'cidade_filtro2', selected='')
+  })
+  
+  
+  output$grafico_series_1e2 <- renderPlotly({
+    est1 <- input$e_c1
+    cid1 <- input$cidade_filtro1
+    est2 <- input$e_c2
+    cid2 <- input$cidade_filtro2
+    
+    
+    if((is.null(est1) && is.null(est2)) || (est1 == '' && est2 == '') || (is.null(est1) || is.null(est2)) || (est1 == '' || est2 == '')) {
+      
+      df_cidade <- covid19(country = c('Brazil'), level=1, verbose=F)  %>% filter(date >= input$data_slider1[1],
+                                                                                  date <= input$data_slider1[2])
+      
+      p <- df_cidade %>%
+        slice(-1) %>%
+        mutate(vaccines = diff(df_cidade$vaccines)) %>%
+        ggplot(aes(x = date, y = vaccines)) +
+        geom_line(color = "blue") +
+        labs(title = paste("Doses de vacinas administradas no Brasil"), x = "Data", y = "Novos Confirmados Diários") +
+        theme_minimal() +
+        scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
+      
+      fig <- ggplotly(p)
+      return(fig)
+      
+    } else {
+      if(!((is.null(est1) && is.null(est2)) || (est1 == '' && est2 == '')) && file.exists(paste('dados/dados', est1, cid1, '.csv')) && file.exists(paste('dados/dados', est2, cid2, '.csv'))) {
+        df_cidade1 <- read.csv(paste('dados/dados', est1, cid1, '.csv')) %>% filter(date >= input$data_slider1[1],
+                                                                                    date <= input$data_slider1[2])
+        df_cidade1$date <- as.Date(df_cidade1$date)
+        df_cidade1 <- corrige(df_cidade1,"vaccines")
+        df_cidade1 <- df_cidade1 %>%
+          slice(-1) %>%
+          mutate(vaccines = diff(df_cidade1$vaccines))
+        
+        df_cidade2 <- read.csv(paste('dados/dados', est2, cid2, '.csv')) %>% filter(date >= input$data_slider1[1],
+                                                                                    date <= input$data_slider1[2])
+        df_cidade2$date <- as.Date(df_cidade2$date)
+        df_cidade2 <- corrige(df_cidade2,"vaccines")
+        df_cidade2 <- df_cidade2 %>%
+          slice(-1) %>%
+          mutate(vaccines = diff(df_cidade2$vaccines))
+        
+        df_1e2 <- rbind(df_cidade1,df_cidade2)
+        
+        p <- ggplot(df_1e2, aes(x = date, y = vaccines, color = administrative_area_level_3)) +
+          geom_line() +
+          labs(title = paste("Doses de vacinas administradas em", cid1,"e", cid2),
+               x = "Ano",
+               y = "Confirmados")
+        
+        fig <- ggplotly(p)
+        return(fig)
+      }
+      else {
+        df_cidade1 <- dados_estados %>% filter(administrative_area_level_2 == est1) %>% filter(date >= input$data_slider1[1],
+                                                                                               date <= input$data_slider1[2])
+        df_cidade1$date <- as.Date(df_cidade1$date)
+        df_cidade1 <- corrige(df_cidade1,"vaccines")
+        df_cidade1 <- df_cidade1 %>%
+          slice(-1) %>%
+          mutate(vaccines = diff(df_cidade1$vaccines))
+        
+        df_cidade2 <- dados_estados %>% filter(administrative_area_level_2 == est2) %>% filter(date >= input$data_slider1[1],
+                                                                                               date <= input$data_slider1[2])
+        df_cidade2$date <- as.Date(df_cidade2$date)
+        df_cidade2 <- corrige(df_cidade2,"vaccines")
+        df_cidade2 <- df_cidade2 %>%
+          slice(-1) %>%
+          mutate(vaccines = diff(df_cidade2$vaccines))
+        
+        df_1e2 <- rbind(df_cidade1,df_cidade2)
+        
+        p <- ggplot(df_1e2, aes(x = date, y = vaccines, color = administrative_area_level_2)) +
+          geom_line() +
+          labs(title = paste("Doses de vacinas administradas em", est1,"e", est2),
+               x = "Ano",
+               y = "Confirmados")
+        
+        fig <- ggplotly(p)
+        return(fig)
+      }
+    }
+  })
+  
+  #================================================================== END: DIFERENÇAS GEOGRÁFICAS
   
 }
 
