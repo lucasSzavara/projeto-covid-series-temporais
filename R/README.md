@@ -1,0 +1,1 @@
+Antes de executar o app, execute o arquivo gera_dados.R para salvar os dados por cidade.

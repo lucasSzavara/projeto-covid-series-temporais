@@ -9,7 +9,7 @@ for(uf in unique(x$administrative_area_level_2)){
     cat('\nComeçando cidade: ', cidade)
     cidades <- c(cidades, cidade)
     estados <- c(estados, uf)
-    # write.csv(x[x$administrative_area_level_2 == uf & x$administrative_area_level_3 == cidade,], paste('./dados/dados', uf, cidade,'.csv'), row.names = F)
+    write.csv(x[x$administrative_area_level_2 == uf & x$administrative_area_level_3 == cidade,], paste('./dados/dados', uf, cidade,'.csv'), row.names = F)
   }
 }
 write.csv(data.frame(estados, cidades), './estados_cidades.csv', row.names = F)
