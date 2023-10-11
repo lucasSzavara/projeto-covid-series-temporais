@@ -12,4 +12,5 @@ for(uf in unique(x$administrative_area_level_2)){
     write.csv(x[x$administrative_area_level_2 == uf & x$administrative_area_level_3 == cidade,], paste('./dados/dados', uf, cidade,'.csv'), row.names = F)
   }
 }
-write.csv(data.frame(estados, cidades), './estados_cidades.csv', row.names = F)
+aux <- data.frame(estados, cidades)
+write.csv(aux[order(aux$estados, aux$cidades), ], './estados_cidades.csv', row.names = F)
