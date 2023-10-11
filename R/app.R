@@ -102,8 +102,9 @@ ui <- dashboardPage(
                        box(width = NULL, status = "warning", solidHeader = TRUE,
                            sliderInput("date_slider", "Período", min = min(dados_estados$date), max = max(dados_estados$date),
                                        value = c(min(dados_estados$date), max(dados_estados$date)))),
-                       box(width = NULL, status = "warning", solidHeader = TRUE,
-                           selectInput("inicio", "Data de início do gráfico", inicio))),
+                       # box(width = NULL, status = "warning", solidHeader = TRUE,
+                       #     selectInput("inicio", "Data de início do gráfico", inicio))
+                       ),
                 column(width = 10, 
                        box(width = NULL, solidHeader = TRUE, 
                            plotlyOutput("grafico_series", height = 500)))
@@ -164,8 +165,9 @@ ui <- dashboardPage(
                        box(width = NULL, status = "warning", solidHeader = TRUE,
                            sliderInput("data_slider1", "Período", min = min(dados_estados$date), max = max(dados_estados$date),
                                        value = c(min(dados_estados$date), max(dados_estados$date)))),
-                       box(width = NULL, status = "warning", solidHeader = TRUE,
-                           selectInput("inicio1", "Data de início do gráfico", inicio))),
+                       # box(width = NULL, status = "warning", solidHeader = TRUE,
+                       #     selectInput("inicio1", "Data de início do gráfico", inicio))
+                       ),
                 column(width = 10, 
                        box(width = NULL, solidHeader = TRUE, 
                            plotlyOutput("grafico_series_1e2", height = 500)))
@@ -363,9 +365,9 @@ server <- function(input, output, session) {
     p <- df_cidade %>%
       slice(-1) %>%
       mutate(vaccines = diff(df_cidade$vaccines)) %>%
-      ggplot(aes(x = date, y = vaccines)) +
+      ggplot(aes(x = date, y = vaccines/10000)) +
       geom_line(color = "green") +
-      labs(title = paste("Doses de vacinas administradas em", cid, ', ', est), x = "Data", y = "Doses de vacinas Diárias") +
+      labs(title = paste("Doses de vacinas administradas por 10.000 habitantes em", cid, ', ', est), x = "Data", y = "Doses de vacinas Diárias") +
       theme_minimal() +
       scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
     
@@ -398,7 +400,7 @@ server <- function(input, output, session) {
       slice(-1) %>%
       mutate(vaccines = diff(df_cidade$vaccines))
     
-    p <- grafico_sazonal(df_cidade$date,df_cidade$vaccines,"Doses de vacinas administradas em anos sucessivos","Data","Doses de vacinas","year")
+    p <- grafico_sazonal(df_cidade$date,df_cidade$vaccines/10000,"Doses de vacinas administradas por 10.000 habitantes em anos sucessivos","Data","Doses de vacinas","year")
     
     return(p)
   })
