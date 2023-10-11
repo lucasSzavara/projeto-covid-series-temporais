@@ -120,9 +120,11 @@ ui <- dashboardPage(
                 column(width = 4,
                        box(width = NULL, status = "warning", solidHeader = TRUE,
                            sliderInput("date_slider", "Período", min = min(dados_estados$date), max = max(dados_estados$date),
+
                                        value = c(min(dados_estados$date), max(dados_estados$date)))
                            )
                        )
+
               ),
               
               fluidRow(
@@ -189,8 +191,10 @@ ui <- dashboardPage(
                 column(width = 4,
                        box(width = NULL, status = "warning", solidHeader = TRUE,
                            sliderInput("data_slider1", "Período", min = min(dados_estados$date), max = max(dados_estados$date),
+
                                        value = c(min(dados_estados$date), max(dados_estados$date)))
                            )
+
               ),
               
               fluidRow(column(width = 12, 
