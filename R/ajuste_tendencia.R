@@ -1,13 +1,26 @@
 library(nloptr)
 library(COVID19)
 
-df <- covid19(country = c('Brazil'), level=1, verbose=F, end = '2022-03-03')
-novos_casos <- c(1, diff(df$deaths))
+df <- covid19(country = c('Brazil'), level=1, verbose=F)
+
+# cálculo da série diária
+serie_diferenciada <- c(1, diff(df$deaths))
+# cálculo da série diária diferenciada
+serie_sem_tendencia <- diff(serie_diferenciada)
+plot(serie_sem_tendencia)
+
+# Cálculo da média móvel e pontos de inflexão
+medias_moveis <- slider::slide_dbl(serie_sem_tendencia, mean, .before=15, .complete=TRUE)
 dias <- as.numeric(df$date - df[1, 2])
 
-ts <- as.numeric(as.Date(c('2020-11-24', '2021-12-27')) - df[1, 2])
+ts <- which(medias_moveis == 0)
+ts <- ts[ts > 30]
+ts <- ts[ts < length(medias_moveis) - 30]
+ts <- ts[2:(length(ts)-1)]
 
+N <- length(ts) + 1
 
+# Cálculo dos coeficientes como função do tempo
 calcula_ps <- function(ps, t, rs) {
     soma <- 0
     for(i in 1:(length(ps) - 1)) {
@@ -15,14 +28,9 @@ calcula_ps <- function(ps, t, rs) {
     }
     return(ps[1] + soma)
 }
-  
-modelo_casos <- function(c1, c2, c3, a1, a2, a3, q1, q2, q3, b1, b2, b3, g1, g2, g3, r1, r2, t) {
-  rs <- c(r1, r2)
-  cs <- c(c1, c2, c3)
-  as <- c(a1, a2, a3)
-  qs <- c(q1, q2, q3)
-  bs <- c(b1, b2, b3)
-  gs <- c(g1, g2, g3)
+
+# cálculo do valor estimado da série 
+modelo <- function(cs, as, qs, bs, gs, rs, t) {
   c <- calcula_ps(cs, t, rs)
   a <- calcula_ps(as, t, rs)
   q <- calcula_ps(qs, t, rs)
@@ -31,67 +39,48 @@ modelo_casos <- function(c1, c2, c3, a1, a2, a3, q1, q2, q3, b1, b2, b3, g1, g2,
   return((c*t^a)/((1+b*(q-1)*t^g)^(1/(q-1))))
 }
 
+# cálculo da norma l2 dos erros 
 residuos_f <- function(args) {
-  c1 <- args[1]
-  c2 <- args[2]
-  c3 <- args[3]
-  a1 <- args[4]
-  a2 <- args[5]
-  a3 <- args[6]
-  q1 <- args[7]
-  q2 <- args[8]
-  q3 <- args[9]
-  b1 <- args[10]
-  b2 <- args[11]
-  b3 <- args[12]
-  g1 <- args[13]
-  g2 <- args[14]
-  g3 <- args[15]
-  r1 <- args[16]
-  r2 <- args[17]
-  sse <- sum((novos_casos - modelo_casos(c1, c2, c3, a1, a2, a3, q1, q2, q3, b1, b2, b3, g1, g2, g3, r1, r2, dias))^2)
+  cs <- args[1:(N)]
+  as <- args[(N+1):(2*N)]
+  qs <- args[(2*N + 1): (3*N)]
+  bs <- args[(3*N+1):(4*N)]
+  gs <- args[(4*N+1):(5*N)]
+  rs <- args[(5*N+1):length(args)]
+  sse <- sqrt(sum((serie_diferenciada - modelo(cs, as, qs, bs, gs, rs, dias))^2))
   return(sse)
 }
 
-
+# restrições dos parâmetros
 restricoes <- function(args) {
-  a3 <- args[6]
-  q3 <- args[9]
-  g3 <- args[15]
-  return(g3 - (q3 - 1)*(a3 + 1))
+  a <- args[2*N]
+  q <- args[(2*N + 1): (3*N)]
+  g <- args[(5*N)]
+  return(g - (q - 1)*(a + 1))
 }
 
-opt <- cobyla(x0 = c(rep(1e-3, 3),
-              rep(4, 3),
-              rep(1.4, 3),
-              rep(1e-5, 3),
-              rep(3, 3),
-              rep(0.1, 2)
+# Ajuste
+opt <- cobyla(x0 = c(rep(1e-3, N),
+              rep(4, N),
+              rep(1.4, N),
+              rep(1e-5, N),
+              rep(3, N),
+              rep(0.1, N-1)
               ),
        fn=residuos_f,
-       lower=c(rep(0, 6), rep(1, 3), rep(0, 8)),
+       lower=c(rep(0, 2*N), rep(1, N), rep(0, 2*N+(N-1))),
        hin = restricoes,
-       control = list(xtol_rel = 1e-12, maxeval = 1e7)
+       control = list(xtol_rel = 1e-4, maxeval = 5e5)
 )
 opt
 args <- opt$par
-c1 <- args[1]
-c2 <- args[2]
-c3 <- args[3]
-a1 <- args[4]
-a2 <- args[5]
-a3 <- args[6]
-q1 <- args[7]
-q2 <- args[8]
-q3 <- args[9]
-b1 <- args[10]
-b2 <- args[11]
-b3 <- args[12]
-g1 <- args[13]
-g2 <- args[14]
-g3 <- args[15]
-r1 <- args[16]
-r2 <- args[17]
-plot(x=dias, y=novos_casos, pch = 20)
-curve(modelo_casos(c1, c2, c3, a1, a2, a3, q1, q2, q3, b1, b2, b3, g1, g2, g3, r1, r2, x), add=T, col='red', lwd=5)
+cs <- args[1:(N)]
+as <- args[(N+1):(2*N)]
+qs <- args[(2*N + 1): (3*N)]
+bs <- args[(3*N+1):(4*N)]
+gs <- args[(4*N+1):(5*N)]
+rs <- args[(5*N+1):length(args)]
+# Gráfico do ajuste do modelo
+plot(x=dias, y=serie_diferenciada, pch = 20)
+curve(modelo(cs, as, qs, bs, gs, rs, x), add=T, col='red', lwd=5)
 
