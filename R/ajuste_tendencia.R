@@ -129,51 +129,60 @@ df <- covid19(country = c('Brazil'), level=1, verbose=F)
 df <- corrige(df, 'deaths')
 df <- corrige(df, 'confirmed')
 serie <- df$deaths
-serie[is.na(serie)] <- 0
-# cálculo da série diária
-y <- c(1, diff(serie))
 
-# Cálculo das splines cúbicas
-spline_fit <- smooth.spline(y, df=40)
-poly <- SmoothSplineAsPiecePoly(spline_fit)
-# Maximos e minimos das splines
-zeros  <- solve(poly, deriv=1)
-minimos_ <- zeros[predict(poly, zeros, deriv=2)>0]
-minimos <- c()
-for (i in 1:(length(minimos_) - 1)) {
-  if(minimos_[i+1] - minimos_[i] > 90) {
-    minimos <- c(minimos, minimos_[i])
+estima_tendencia <- function(serie) {
+  serie[is.na(serie)] <- 0
+  # cálculo da série diária
+  y <- c(1, diff(serie))
+  
+  # Cálculo das splines cúbicas
+  spline_fit <- smooth.spline(y, df=40)
+  poly <- SmoothSplineAsPiecePoly(spline_fit)
+  # Maximos e minimos das splines
+  zeros  <- solve(poly, deriv=1)
+  minimos_ <- zeros[predict(poly, zeros, deriv=2)>0]
+  minimos <- c()
+  for (i in 1:(length(minimos_) - 1)) {
+    if(minimos_[i+1] - minimos_[i] > 90) {
+      minimos <- c(minimos, minimos_[i])
+    }
   }
-}
-as.data.frame(cbind(ajuste=spline_fit$y, y, t=1:length(y))) %>%
-  ggplot() +
-  geom_point(aes(x=t, y=y)) +
-  geom_line(aes(x=t, y=ajuste), color='red', size=1.2) +
-  geom_vline(xintercept=minimos, color='blue')
-
-N <- length(minimos)
-factors <- sapply(1:N, FUN=function(i){paste('I(d',i,'/(1+exp(b',i,'*(log(x)-e',i,'))))', sep='')})
-model_formula <- reformulate(termlabels = factors, response = 'y')
-t <- 1:length(serie)
-ip <- c()
-for (i in 1:N) {
-  if(i == N) {
-    yi <- serie[as.integer(minimos[i]):length(serie)] - serie[as.integer(minimos[i])-1]
-    ti <- as.integer(minimos[i]):length(serie)
-  } else {
-    yi <- serie[as.integer(minimos[i]):as.integer(minimos[i+1]+1)]- serie[as.integer(minimos[i])-1]
-    ti <- as.integer(minimos[i]):as.integer(minimos[i+1]+1)
+  as.data.frame(cbind(ajuste=spline_fit$y, y, t=1:length(y))) %>%
+    ggplot() +
+    geom_point(aes(x=t, y=y)) +
+    geom_line(aes(x=t, y=ajuste), color='red', size=1.2) +
+    geom_vline(xintercept=minimos, color='blue')
+  
+  N <- length(minimos)
+  factors <- sapply(1:N, FUN=function(i){paste('I(d',i,'/(1+exp(b',i,'*(log(x)-e',i,'))))', sep='')})
+  model_formula <- reformulate(termlabels = factors, response = 'y')
+  t <- 1:length(serie)
+  ip <- c()
+  for (i in 1:N) {
+    if(i == N) {
+      yi <- serie[as.integer(minimos[i]):length(serie)] - serie[as.integer(minimos[i])-1]
+      ti <- as.integer(minimos[i]):length(serie)
+    } else {
+      yi <- serie[as.integer(minimos[i]):as.integer(minimos[i+1]+1)]- serie[as.integer(minimos[i])-1]
+      ti <- as.integer(minimos[i]):as.integer(minimos[i+1]+1)
+    }
+    modeloi <- drm(yi~ti, fct=LL2.3())
+    ipi <- t(as.data.frame(modeloi$coefficients))
+    colnames(ipi) <- paste(substr(colnames(ipi),1,1), i, sep='')
+    ip <- cbind(ip, ipi)
   }
-  modeloi <- drm(yi~ti, fct=LL2.3())
-  ipi <- t(as.data.frame(modeloi$coefficients))
-  colnames(ipi) <- paste(substr(colnames(ipi),1,1), i, sep='')
-  ip <- cbind(ip, ipi)
+  dados <- data.frame(y=serie, x=t)
+  fit <- nls(model_formula, dados, start=ip[1,])
+  
+  return(predict(fit))
 }
-dados <- data.frame(y=serie, x=t)
-fit <- nls(model_formula, dados, start=ip[1,])
 
-as.data.frame(cbind(ajuste=predict(fit), serie, t=1:length(serie))) %>%
+as.data.frame(cbind(ajuste=diff(estima_tendencia(serie)), serie=diff(serie), t=2:length(serie))) %>%
   ggplot() +
   geom_point(aes(x=t, y=serie)) +
   geom_line(aes(x=t, y=ajuste), color='red', size=1)
 
+
+as.data.frame(cbind(ajuste=estima_tendencia(serie)-serie, t=1:length(serie))) %>%
+  ggplot() +
+  geom_point(aes(x=t, y=ajuste)) 
