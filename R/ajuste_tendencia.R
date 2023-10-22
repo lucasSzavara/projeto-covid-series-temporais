@@ -1,86 +1,179 @@
-library(nloptr)
 library(COVID19)
+library(dplyr)
+library(ggplot2)
+library(drc)
 
-df <- covid19(country = c('Brazil'), level=1, verbose=F)
+CubicInterpSplineAsPiecePoly <- function (x, y, method = c("fmm", "natural", "periodic", "hyman")) {
+  ## method validation
+  if (!(method %in% c("fmm", "natural", "periodic", "hyman")))
+    mystop("'method' must be one of the following: 'fmm', 'natural', 'periodic', 'hyman'!")
+  ## use `splinefun` for cubic spline interpolation
+  CubicInterpSpline <- stats::splinefun(x, y, method)
+  ## extract construction info
+  construction_info <- environment(CubicInterpSpline)$z
+  ## export as an "PiecePoly" object
+  pieces <- seq_len(length(construction_info$x) - 1L)
+  PiecePolyCoef <- with(construction_info, rbind(y[pieces], b[pieces], c[pieces], d[pieces], deparse.level = 0L))
+  structure(list(PiecePoly = list(coef = PiecePolyCoef, shift = TRUE),
+                 knots = construction_info$x), method = method,
+            class = c("PiecePoly", "CubicInterpSpline"))
+}
 
-# cálculo da série diária
-serie_diferenciada <- c(1, diff(df$deaths))
-# cálculo da série diária diferenciada
-serie_sem_tendencia <- diff(serie_diferenciada)
-plot(serie_sem_tendencia)
+## represent a fitted smoothing spline as an interpolation spline
+SmoothSplineAsPiecePoly <- function (SmoothSpline) {
+  ## input validation
+  if (!inherits(SmoothSpline, "smooth.spline"))
+    mystop("This function only works with models that inherit 'smooth.spline' class!")
+  ## knots of the smoothing spline
+  kx <- with(SmoothSpline$fit, knot * range + min)
+  kx <- kx[4:(length(kx) - 3)]
+  ky <- predict(SmoothSpline, kx, 0L)[[2]]  ## deriv = 0L
+  ## natural cubic spline interpolation over the knots
+  CubicInterpSplineAsPiecePoly(kx, ky, method = "natural")
+}
 
-# Cálculo da média móvel e pontos de inflexão
-medias_moveis <- slider::slide_dbl(serie_sem_tendencia, mean, .before=15, .complete=TRUE)
-dias <- as.numeric(df$date - df[1, 2])
+predict.PiecePoly <- function (object, newx, deriv = 0L, ...) {
+  ## change symbol
+  PiecePolyObject <- object
+  ## extract piecewise polynomial coefficients
+  PiecePolyCoef <- PiecePolyObject$PiecePoly$coef
+  shift <- PiecePolyObject$PiecePoly$shift
+  ## get degree
+  degree <- dim(PiecePolyCoef)[1L] - 1L
+  ## deriv validation
+  if (deriv > degree) return(numeric(length(newx)))
+  ## get power
+  power <- 0:(degree - deriv)
+  ## extract knots
+  x <- PiecePolyObject$knots
+  ## which piece?
+  piece_id <- findInterval(newx, x, TRUE)
+  ind <- split.default(seq_len(length(newx)), piece_id)
+  unique_piece_id <- as.integer(names(ind))
+  n_pieces <- length(unique_piece_id)
+  ## loop through pieces
+  y <- numeric(length(newx))
+  i <- 1L
+  while (i <= n_pieces) {
+    ii <- unique_piece_id[i]
+    xi <- newx[ind[[i]]] - shift * x[ii]
+    pc <- PiecePolyCoef[, ii]
+    if (deriv > 0) pc <- pc[-seq_len(deriv)] * choose(deriv:degree, deriv) * factorial(deriv)
+    y[ind[[i]]] <- c(outer(xi, power, "^") %*% pc)
+    i <- i + 1L
+  }
+  y
+}
 
-ts <- which(medias_moveis == 0)
-ts <- ts[ts > 30]
-ts <- ts[ts < length(medias_moveis) - 30]
-ts <- ts[2:(length(ts)-1)]
+## `solve` method for "PiecePoly"
+##    solve
+##    function (a, b, ...)
+##  1. backsolve 'x' value given a 'y' value on the spline
+##  2. find extrema of the spline
+solve.PiecePoly <- function (a, b = 0, deriv = 0L, ...) {
+  ## change symbol
+  PiecePolyObject <- a
+  y <- b
+  ## helpful message (in case someone used `y = y0` than `b = y0` to give RHS which returns misleading results)
+  cat(sprintf("solving equation for RHS value %.7g\n", y))
+  ## extract piecewise polynomial coefficients
+  PiecePolyCoef <- PiecePolyObject$PiecePoly$coef
+  shift <- PiecePolyObject$PiecePoly$shift
+  n_pieces <- dim(PiecePolyCoef)[2L]
+  ## get degree
+  degree <- dim(PiecePolyCoef)[1L] - 1L
+  ## extract knots
+  x <- PiecePolyObject$knots
+  ## deriv validation
+  if (deriv >= degree) mystop("'deriv' can not exceed 'degree'!")
+  ## list of roots on each piece
+  xr <- vector("list", n_pieces)
+  ## loop through pieces
+  i <- 1L
+  while (i <= n_pieces) {
+    ## polynomial coefficient
+    pc <- PiecePolyCoef[, i]
+    ## take derivative
+    if (deriv > 0) pc <- pc[-seq_len(deriv)] * choose(deriv:degree, deriv) * factorial(deriv)
+    pc[1] <- pc[1] - y
+    ## complex roots
+    croots <- base::polyroot(pc)
+    ## real roots (be careful when testing 0 for floating point numbers)
+    rroots <- Re(croots)[round(Im(croots), 10) == 0]
+    ## is shifting needed?
+    if (shift) rroots <- rroots + x[i]
+    ## real roots in (x[i], x[i + 1])
+    xr[[i]] <- rroots[(rroots >= x[i]) & (rroots <= x[i + 1])]
+    ## next piece
+    i <- i + 1L
+  }
+  ## collapse list to atomic vector and return
+  unlist(xr)
+}
 
-N <- length(ts) + 1
 
-# Cálculo dos coeficientes como função do tempo
-calcula_ps <- function(ps, t, rs) {
-    soma <- 0
-    for(i in 1:(length(ps) - 1)) {
-      soma <- soma + ((ps[i+1]-ps[i])/2)*(1+tanh(rs[i]*(t-ts[i])/2))
+corrige <- function(df_, variavel){
+  df <- data.frame(df_)
+  df[is.na(df)] <- 0
+  for(i in 2:length(df[[variavel]])){
+    if(df[i,variavel] < df[i-1,variavel]){
+      df[i,variavel] <- df[i-1,variavel]
     }
-    return(ps[1] + soma)
+  }
+  return(df)
 }
 
-# cálculo do valor estimado da série 
-modelo <- function(cs, as, qs, bs, gs, rs, t) {
-  c <- calcula_ps(cs, t, rs)
-  a <- calcula_ps(as, t, rs)
-  q <- calcula_ps(qs, t, rs)
-  b <- calcula_ps(bs, t, rs)
-  g <- calcula_ps(gs, t, rs)
-  return((c*t^a)/((1+b*(q-1)*t^g)^(1/(q-1))))
-}
+# df <- read.csv('./dados/dados São Paulo São Paulo .csv')
+df <- covid19(country = c('Brazil'), level=1, verbose=F)
+# df <- df[df$administrative_area_level_2=='São Paulo',]
+df <- corrige(df, 'deaths')
+df <- corrige(df, 'confirmed')
+serie <- df$deaths
+serie[is.na(serie)] <- 0
+# cálculo da série diária
+y <- c(1, diff(serie))
 
-# cálculo da norma l2 dos erros 
-residuos_f <- function(args) {
-  cs <- args[1:(N)]
-  as <- args[(N+1):(2*N)]
-  qs <- args[(2*N + 1): (3*N)]
-  bs <- args[(3*N+1):(4*N)]
-  gs <- args[(4*N+1):(5*N)]
-  rs <- args[(5*N+1):length(args)]
-  sse <- sqrt(sum((serie_diferenciada - modelo(cs, as, qs, bs, gs, rs, dias))^2))
-  return(sse)
+# Cálculo das splines cúbicas
+spline_fit <- smooth.spline(y, df=40)
+poly <- SmoothSplineAsPiecePoly(spline_fit)
+# Maximos e minimos das splines
+zeros  <- solve(poly, deriv=1)
+minimos_ <- zeros[predict(poly, zeros, deriv=2)>0]
+minimos <- c()
+for (i in 1:(length(minimos_) - 1)) {
+  if(minimos_[i+1] - minimos_[i] > 90) {
+    minimos <- c(minimos, minimos_[i])
+  }
 }
+as.data.frame(cbind(ajuste=spline_fit$y, y, t=1:length(y))) %>%
+  ggplot() +
+  geom_point(aes(x=t, y=y)) +
+  geom_line(aes(x=t, y=ajuste), color='red', size=1.2) +
+  geom_vline(xintercept=minimos, color='blue')
 
-# restrições dos parâmetros
-restricoes <- function(args) {
-  a <- args[2*N]
-  q <- args[(2*N + 1): (3*N)]
-  g <- args[(5*N)]
-  return(g - (q - 1)*(a + 1))
+N <- length(minimos)
+factors <- sapply(1:N, FUN=function(i){paste('I(d',i,'/(1+exp(b',i,'*(log(x)-e',i,'))))', sep='')})
+model_formula <- reformulate(termlabels = factors, response = 'y')
+t <- 1:length(serie)
+ip <- c()
+for (i in 1:N) {
+  if(i == N) {
+    yi <- serie[as.integer(minimos[i]):length(serie)] - serie[as.integer(minimos[i])-1]
+    ti <- as.integer(minimos[i]):length(serie)
+  } else {
+    yi <- serie[as.integer(minimos[i]):as.integer(minimos[i+1]+1)]- serie[as.integer(minimos[i])-1]
+    ti <- as.integer(minimos[i]):as.integer(minimos[i+1]+1)
+  }
+  modeloi <- drm(yi~ti, fct=LL2.3())
+  ipi <- t(as.data.frame(modeloi$coefficients))
+  colnames(ipi) <- paste(substr(colnames(ipi),1,1), i, sep='')
+  ip <- cbind(ip, ipi)
 }
+dados <- data.frame(y=serie, x=t)
+fit <- nls(model_formula, dados, start=ip[1,])
 
-# Ajuste
-opt <- cobyla(x0 = c(rep(1e-3, N),
-              rep(4, N),
-              rep(1.4, N),
-              rep(1e-5, N),
-              rep(3, N),
-              rep(0.1, N-1)
-              ),
-       fn=residuos_f,
-       lower=c(rep(0, 2*N), rep(1, N), rep(0, 2*N+(N-1))),
-       hin = restricoes,
-       control = list(xtol_rel = 1e-4, maxeval = 5e5)
-)
-opt
-args <- opt$par
-cs <- args[1:(N)]
-as <- args[(N+1):(2*N)]
-qs <- args[(2*N + 1): (3*N)]
-bs <- args[(3*N+1):(4*N)]
-gs <- args[(4*N+1):(5*N)]
-rs <- args[(5*N+1):length(args)]
-# Gráfico do ajuste do modelo
-plot(x=dias, y=serie_diferenciada, pch = 20)
-curve(modelo(cs, as, qs, bs, gs, rs, x), add=T, col='red', lwd=5)
+as.data.frame(cbind(ajuste=predict(fit), serie, t=1:length(serie))) %>%
+  ggplot() +
+  geom_point(aes(x=t, y=serie)) +
+  geom_line(aes(x=t, y=ajuste), color='red', size=1)
 

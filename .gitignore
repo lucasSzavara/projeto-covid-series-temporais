@@ -1,3 +1,5 @@
 .idea
 __pycache__/
 R/dados
+R/.RData
+R/.Rhistory
