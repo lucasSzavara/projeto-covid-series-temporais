@@ -1,6 +1,6 @@
 # Pacotes
 #install.packages("pacman")
-pacman::p_load(shiny, shinydashboard, shinythemes, COVID19, fpp3, plotly, forecast, stringr)
+pacman::p_load(shiny, shinydashboard, shinythemes, COVID19, fpp3, plotly, forecast, stringr, drc)
 
 
 #------------------------------------------------------------
@@ -133,15 +133,32 @@ solve.PiecePoly <- function (a, b = 0, deriv = 0L, ...) {
   unlist(xr)
 }
 
-corrige <- function(df_, variavel){
-  df <- data.frame(df_)
+corrige <- function(df, variavel){
   df[is.na(df)] <- 0
+  print(sum(is.na(df[,variavel])))
   for(i in 2:length(df[[variavel]])){
     if(df[i,variavel] < df[i-1,variavel]){
       df[i,variavel] <- df[i-1,variavel]
     }
   }
   return(df)
+}
+
+grafico_series <- function(datas, series, titulo_grafico, eixo_x, eixo_y) {
+  tendencias <- estima_tendencia(series)
+  p <- as.data.frame(cbind(serie=series)) %>%
+    slice(-1) %>%
+    mutate(serie_mutada = diff(series)) %>%
+    ggplot(aes(x = datas[2:length(datas)], y = serie_mutada)) +
+    geom_line(color = "blue") +
+    labs(title = titulo_grafico, x = eixo_x, y = eixo_y) +
+    theme_minimal() +
+    scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y") +
+    geom_line(aes(x=datas[2:length(datas)], y=diff(tendencias)), color='red')
+  
+  fig <- ggplotly(p)
+  return(fig)
+  
 }
 
 grafico_sazonal <- function(datas, serie, titulo_grafico, eixo_x, eixo_y, periodo, verbose=F) {
@@ -198,11 +215,6 @@ estima_tendencia <- function(serie) {
       minimos <- c(minimos, minimos_[i])
     }
   }
-  as.data.frame(cbind(ajuste=spline_fit$y, y, t=1:length(y))) %>%
-    ggplot() +
-    geom_point(aes(x=t, y=y)) +
-    geom_line(aes(x=t, y=ajuste), color='red', size=1.2) +
-    geom_vline(xintercept=minimos, color='blue')
   
   N <- length(minimos)
   factors <- sapply(1:N, FUN=function(i){paste('I(d',i,'/(1+exp(b',i,'*(log(x)-e',i,'))))', sep='')})
@@ -256,9 +268,9 @@ ui <- dashboardPage(
                        box(width = NULL, status = "warning", solidHeader = TRUE,
                            selectInput("e_c", "Estado", est, selectize = TRUE)),
                        uiOutput('html_filtro_cidade'),
-                       # box(width = NULL, status = "warning", solidHeader = TRUE,
-                       #     sliderInput("date_slider", "Período", min = min(dados_estados$date), max = max(dados_estados$date),
-                       #                 value = c(min(dados_estados$date), max(dados_estados$date)))),
+                        box(width = NULL, status = "warning", solidHeader = TRUE,
+                            sliderInput("date_slider", "Período", min = min(dados_estados$date), max = max(dados_estados$date),
+                                        value = c(min(dados_estados$date), max(dados_estados$date)))),
                        # box(width = NULL, status = "warning", solidHeader = TRUE,
                        #     selectInput("inicio", "Data de início do gráfico", inicio))
                 ),
@@ -383,20 +395,11 @@ server <- function(input, output, session) {
     }
     df_cidade$date <- as.Date(df_cidade$date)
     df_cidade <- corrige(df_cidade,"confirmed")
-    df_cidade$tendencia <- estima_tendencia(df_cidade$confirmed)
+    titulo = paste("Casos confirmados em", cid, ', ', est)
     
-    p <- df_cidade %>%
-      slice(-1) %>%
-      mutate(confirmed = diff(df_cidade$confirmed)) %>%
-      ggplot(aes(x = date, y = confirmed)) +
-      geom_line(color = "blue") +
-      labs(title = paste("Casos confirmados em", cid, ', ', est), x = "Data", y = "Novos Confirmados Diários") +
-      theme_minimal() +
-      scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y") +
-      geom_line(aes(x=date, y=diff(df_cidade$tendencia)), color='red')
+    p <- grafico_series(df_cidade$date, df_cidade$confirmed, titulo, "Data", "Novos Confirmados Diários")
     
-    fig <- ggplotly(p)
-    return(fig)
+    return(p)
   })
   
   output$grafico_saz <- renderPlotly({
@@ -446,18 +449,11 @@ server <- function(input, output, session) {
     }
     df_cidade$date <- as.Date(df_cidade$date)
     df_cidade <- corrige(df_cidade,"deaths")
+    titulo = paste("Numero de mortos em", cid, ', ', est)
     
-    p <- df_cidade %>%
-      slice(-1) %>%
-      mutate(deaths = diff(df_cidade$deaths)) %>%
-      ggplot(aes(x = date, y = deaths)) +
-      geom_line(color = "red") +
-      labs(title = paste("Número de mortos em", cid, ', ', est), x = "Data", y = "Número de Mortes Diárias") +
-      theme_minimal() +
-      scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
+    p <- grafico_series(df_cidade$date, df_cidade$deaths, titulo, "Data", "Novos Confirmados Diários")
     
-    fig <- ggplotly(p)
-    return(fig)
+    return(p)
   })
   
   
@@ -508,18 +504,12 @@ server <- function(input, output, session) {
     }
     df_cidade$date <- as.Date(df_cidade$date)
     df_cidade <- corrige(df_cidade,"vaccines")
-    # print(df_cidade$vaccines)
-    p <- df_cidade %>%
-      slice(-1) %>%
-      mutate(vaccines_new = diff(df_cidade$vaccines)) %>%
-      ggplot(aes(x = date, y = vaccines_new)) +
-      geom_line(color = "green") +
-      labs(title = paste("Doses de vacinas administradas em", cid, ', ', est), x = "Data", y = "Doses de vacinas Diárias") +
-      theme_minimal() +
-      scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
+    titulo = paste("Doses de vacinas administradas em", cid, ', ', est)
     
-    fig <- ggplotly(p)
-    return(fig)
+    # print(df_cidade$vaccines)
+    p <- grafico_series(df_cidade$date, df_cidade$vaccines, titulo, "Data", "Novos Confirmados Diários")
+    
+    return(p)
   })
   
   output$grafico_saz2 <- renderPlotly({
@@ -545,7 +535,7 @@ server <- function(input, output, session) {
     #   mutate(vaccines = diff(df_cidade$vaccines))
     # print(df_cidade$vaccines)
     vacinas_diarias <- diff(df_cidade$vaccines)
-    p <- grafico_sazonal(df_cidade$date[2:length(df_cidade$date)],vacinas_diarias/10,"Doses de vacinas administradas em anos sucessivos","Data","Doses de vacinas","year", verbose=T)
+    p <- grafico_sazonal(df_cidade$date[2:length(df_cidade$date)],vacinas_diarias/10,"Doses de vacinas administradas em anos sucessivos","Data","Doses de vacinas","year", verbose=F)
     
     return(p)
   })

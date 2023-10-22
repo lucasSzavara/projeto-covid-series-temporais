@@ -147,12 +147,7 @@ estima_tendencia <- function(serie) {
       minimos <- c(minimos, minimos_[i])
     }
   }
-  as.data.frame(cbind(ajuste=spline_fit$y, y, t=1:length(y))) %>%
-    ggplot() +
-    geom_point(aes(x=t, y=y)) +
-    geom_line(aes(x=t, y=ajuste), color='red', size=1.2) +
-    geom_vline(xintercept=minimos, color='blue')
-  
+
   N <- length(minimos)
   factors <- sapply(1:N, FUN=function(i){paste('I(d',i,'/(1+exp(b',i,'*(log(x)-e',i,'))))', sep='')})
   model_formula <- reformulate(termlabels = factors, response = 'y')
