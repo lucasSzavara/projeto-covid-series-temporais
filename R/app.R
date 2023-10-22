@@ -17,7 +17,8 @@ locais <- read.csv('estados_cidades.csv')
 
 # Selecionadores
 
-est <- c('', unique(locais$estados))
+
+est <- c('', sort(unique(locais$estados)))
 
 inicio <- c("Analisar apartir de X confirmados")
 
@@ -135,7 +136,6 @@ solve.PiecePoly <- function (a, b = 0, deriv = 0L, ...) {
 
 corrige <- function(df, variavel){
   df[is.na(df)] <- 0
-  print(sum(is.na(df[,variavel])))
   for(i in 2:length(df[[variavel]])){
     if(df[i,variavel] < df[i-1,variavel]){
       df[i,variavel] <- df[i-1,variavel]
@@ -199,6 +199,7 @@ grafico_sazonal <- function(datas, serie, titulo_grafico, eixo_x, eixo_y, period
 }
 
 estima_tendencia <- function(serie) {
+  print(serie)
   serie[is.na(serie)] <- 0
   # cálculo da série diária
   y <- c(1, diff(serie))
@@ -221,6 +222,7 @@ estima_tendencia <- function(serie) {
   model_formula <- reformulate(termlabels = factors, response = 'y')
   t <- 1:length(serie)
   ip <- c()
+  print(minimos)
   for (i in 1:N) {
     if(i == N) {
       yi <- serie[as.integer(minimos[i]):length(serie)] - serie[as.integer(minimos[i])-1]
@@ -262,91 +264,119 @@ ui <- dashboardPage(
               # Adicione elementos específicos para a Página 1 aqui
       ),
       tabItem(tabName = "vis",
-              fluidRow(
-                h2(" 1) Confirmados"),
-                column(width = 2, 
-                       box(width = NULL, status = "warning", solidHeader = TRUE,
-                           selectInput("e_c", "Estado", est, selectize = TRUE)),
-                       uiOutput('html_filtro_cidade'),
-                        box(width = NULL, status = "warning", solidHeader = TRUE,
-                            sliderInput("date_slider", "Período", min = min(dados_estados$date), max = max(dados_estados$date),
-                                        value = c(min(dados_estados$date), max(dados_estados$date)))),
-                       # box(width = NULL, status = "warning", solidHeader = TRUE,
-                       #     selectInput("inicio", "Data de início do gráfico", inicio))
-                ),
-                column(width = 10, 
-                       box(width = NULL, solidHeader = TRUE, 
-                           plotlyOutput("grafico_series", height = 500)))
+              fluidRow(column(width = 12,
+                              h2(" 1) Confirmados")
+              )
               ),
               
               fluidRow(
-                column(width = 2
+                column(width = 4,
+                       box(width = NULL, status = "warning", solidHeader = TRUE,
+                           selectInput("e_c", "Estado", est, selectize = TRUE)
+                       )
                 ),
-                column(width = 10, 
+                
+                column(width = 4,
+                       box(width = NULL, status = "warning", solidHeader = TRUE,
+                           uiOutput('html_filtro_cidade')
+                       )
+                ),
+                
+                column(width = 4,
+                       box(width = NULL, status = "warning", solidHeader = TRUE,
+                           sliderInput("date_slider", "Período", min = min(dados_estados$date), max = max(dados_estados$date),
+                                       
+                                       value = c(min(dados_estados$date), max(dados_estados$date)))
+                       )
+                )
+                
+              ),
+              
+              fluidRow(
+                column(width = 6, 
                        box(width = NULL, solidHeader = TRUE, 
-                           plotlyOutput("grafico_saz", height = 500)))
+                           plotlyOutput("grafico_series", height = 500)
+                       )
+                ),
+                
+                column(width = 6, 
+                       box(width = NULL, solidHeader = TRUE, 
+                           plotlyOutput("grafico_saz", height = 500)
+                       )
+                )
               ),
               
               fluidRow(
                 h2(" 2) Mortalidade"),
-                column(width = 2
-                ),
-                column(width = 10, 
+                column(width = 6, 
                        box(width = NULL, solidHeader = TRUE, 
-                           plotlyOutput("grafico_series1", height = 500)))
-              ),
-              
-              fluidRow(
-                column(width = 2
+                           plotlyOutput("grafico_series1", height = 500)
+                       )
                 ),
-                column(width = 10, 
+                
+                column(width = 6, 
                        box(width = NULL, solidHeader = TRUE, 
-                           plotlyOutput("grafico_saz1", height = 500)))
+                           plotlyOutput("grafico_saz1", height = 500)
+                       )
+                )
               ),
               
               fluidRow(
                 h2(" 3) Doses de Vacinas administradas"),
-                column(width = 2
-                ),
-                column(width = 10, 
+                column(width = 6, 
                        box(width = NULL, solidHeader = TRUE, 
-                           plotlyOutput("grafico_series2", height = 500)))
-              ),
-              
-              fluidRow(
-                column(width = 2
+                           plotlyOutput("grafico_series2", height = 500)
+                       )
                 ),
-                column(width = 10, 
+                
+                column(width = 6, 
                        box(width = NULL, solidHeader = TRUE, 
-                           plotlyOutput("grafico_saz2", height = 500)))
+                           plotlyOutput("grafico_saz2", height = 500)
+                       )
+                )
               ),
       ),
+      
       tabItem("dg",
               fluidRow(
-                h2("1) Doses de Vacinas administradas em duas áreas administrativas"),
-                column(width = 2, 
+                h2(" 1) Doses de Vacinas administradas em duas áreas administrativas"),
+                column(width = 4, 
                        box(width = NULL, status = "warning", solidHeader = TRUE,
                            selectInput("e_c1", "Estado1", est, selectize = TRUE),
-                           uiOutput('html_filtro_cidade1')),
+                           uiOutput('html_filtro_cidade1')
+                       ),
+                ),
+                
+                column(width = 4,
                        box(width = NULL, status = "warning", solidHeader = TRUE,
                            selectInput("e_c2", "Estado2", est, selectize = TRUE),
-                           uiOutput('html_filtro_cidade2')),
+                           uiOutput('html_filtro_cidade2'))
+                ),
+                
+                column(width = 4,
                        box(width = NULL, status = "warning", solidHeader = TRUE,
                            sliderInput("data_slider1", "Período", min = min(dados_estados$date), max = max(dados_estados$date),
-                                       value = c(min(dados_estados$date), max(dados_estados$date)))),
-                  ),
-                column(width = 10, 
-                       box(width = NULL, solidHeader = TRUE, 
-                           plotlyOutput("grafico_series_1e2", height = 500)))
-              ),
+                                       
+                                       value = c(min(dados_estados$date), max(dados_estados$date)))
+                       )
+                       
+                ),
+                
+                fluidRow(column(width = 12, 
+                                box(width = NULL, solidHeader = TRUE, 
+                                    plotlyOutput("grafico_series_1e2", height = 500))
+                )
+                )
+              )
               # Adicione elementos específicos para a Página 3 aqui
       ),
+      
       tabItem("efeito",
-              h2("Conteúdo da Página 4")
+              h2("Conteúdo da Página 4"),
               # Adicione elementos específicos para a Página 4 aqui
       ),
       tabItem("ind",
-              h2("Conteúdo da Página 5")
+              h2("Conteúdo da Página 5"),
               # Adicione elementos específicos para a Página 5 aqui
       )
     )
@@ -504,10 +534,10 @@ server <- function(input, output, session) {
     }
     df_cidade$date <- as.Date(df_cidade$date)
     df_cidade <- corrige(df_cidade,"vaccines")
-    titulo = paste("Doses de vacinas administradas em", cid, ', ', est)
+    titulo = paste("Doses de vacinas administradas por 10.000 habitantes em", cid, ', ', est)
     
     # print(df_cidade$vaccines)
-    p <- grafico_series(df_cidade$date, df_cidade$vaccines, titulo, "Data", "Novos Confirmados Diários")
+    p <- grafico_series(df_cidade$date, df_cidade$vaccines/10000, titulo, "Data", "Novos Confirmados Diários")
     
     return(p)
   })
@@ -534,8 +564,11 @@ server <- function(input, output, session) {
     # df_cidade <- df_cidade %>%
     #   mutate(vaccines = diff(df_cidade$vaccines))
     # print(df_cidade$vaccines)
-    vacinas_diarias <- diff(df_cidade$vaccines)
-    p <- grafico_sazonal(df_cidade$date[2:length(df_cidade$date)],vacinas_diarias/10,"Doses de vacinas administradas em anos sucessivos","Data","Doses de vacinas","year", verbose=F)
+    df_cidade <- df_cidade %>%
+      slice(-1) %>%
+      mutate(vaccines = diff(df_cidade$vaccines))
+    
+    p <- grafico_sazonal(df_cidade$date,df_cidade$vaccines/10000,"Doses de vacinas administradas por 10.000 habitantes em anos sucessivos","Data","Doses de vacinas","year")
     
     return(p)
   })
