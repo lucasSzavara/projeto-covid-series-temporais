@@ -1,6 +1,14 @@
 # Pacotes
-#install.packages("pacman")
-pacman::p_load(shiny, shinydashboard, shinythemes, COVID19, fpp3, plotly, forecast, stringr, drc)
+# install.packages("pacman")
+pacman::p_load(shiny, 
+               shinydashboard, 
+               shinythemes, 
+               COVID19, 
+               fpp3, 
+               plotly, 
+               forecast, 
+               stringr, 
+               drc)
 
 
 #------------------------------------------------------------
@@ -264,11 +272,6 @@ ui <- dashboardPage(
               # Adicione elementos específicos para a Página 1 aqui
       ),
       tabItem(tabName = "vis",
-              fluidRow(column(width = 12,
-                              h2(" 1) Confirmados")
-              )
-              ),
-              
               fluidRow(
                 column(width = 4,
                        box(width = NULL, status = "warning", solidHeader = TRUE,
@@ -293,6 +296,12 @@ ui <- dashboardPage(
               ),
               
               fluidRow(
+                column(width = 12, 
+                       h2(" 1) Confirmados")
+                )
+              ),
+              
+              fluidRow(
                 column(width = 6, 
                        box(width = NULL, solidHeader = TRUE, 
                            plotlyOutput("grafico_series", height = 500)
@@ -306,8 +315,15 @@ ui <- dashboardPage(
                 )
               ),
               
+              
+              
               fluidRow(
-                h2(" 2) Mortalidade"),
+                column(width = 12, 
+                       h2(" 2) Mortalidade")
+                       )
+                ),
+                
+              fluidRow(
                 column(width = 6, 
                        box(width = NULL, solidHeader = TRUE, 
                            plotlyOutput("grafico_series1", height = 500)
@@ -322,24 +338,27 @@ ui <- dashboardPage(
               ),
               
               fluidRow(
-                h2(" 3) Doses de Vacinas administradas"),
+                column(width = 12, 
+                       h2(" 3) Doses de Vacinas administradas")
+                )
+              ),
+              
+              fluidRow(
                 column(width = 6, 
                        box(width = NULL, solidHeader = TRUE, 
                            plotlyOutput("grafico_series2", height = 500)
-                       )
-                ),
-                
+                           )
+                       ),
                 column(width = 6, 
                        box(width = NULL, solidHeader = TRUE, 
                            plotlyOutput("grafico_saz2", height = 500)
+                           )
                        )
-                )
-              ),
+              )
       ),
       
       tabItem("dg",
               fluidRow(
-                h2(" 1) Doses de Vacinas administradas em duas áreas administrativas"),
                 column(width = 4, 
                        box(width = NULL, status = "warning", solidHeader = TRUE,
                            selectInput("e_c1", "Estado1", est, selectize = TRUE),
@@ -362,6 +381,12 @@ ui <- dashboardPage(
                        
                 ),
                 
+                fluidRow(
+                  column(width = 12, 
+                         h2(" 1) Doses de Vacinas administradas em duas áreas administrativas")
+                  )
+                ),
+                
                 fluidRow(column(width = 12, 
                                 box(width = NULL, solidHeader = TRUE, 
                                     plotlyOutput("grafico_series_1e2", height = 500))
@@ -378,10 +403,11 @@ ui <- dashboardPage(
       tabItem("ind",
               h2("Conteúdo da Página 5"),
               # Adicione elementos específicos para a Página 5 aqui
+              )
       )
     )
   )
-)
+
 
 #------------------------------------------------------------
 
@@ -396,9 +422,8 @@ server <- function(input, output, session) {
   output$html_filtro_cidade <- renderUI({
     est <- input$e_c
     if(!(is.null(est) || est == '')) {
-      cidades <- unique(locais[locais$estados == est, ]$cidades)
-      return(box(width = NULL, status = "warning", solidHeader = TRUE,
-                 selectInput("cidade_filtro", "Cidade", c('', cidades), selectize = TRUE)))
+      cidades <- sort(unique(locais[locais$estados == est, ]$cidades))
+      return(selectInput("cidade_filtro", "Cidade", c('', cidades), selectize = TRUE))
     }
   })
   observe({
@@ -580,9 +605,8 @@ server <- function(input, output, session) {
   output$html_filtro_cidade1 <- renderUI({
     est <- input$e_c1
     if(!(is.null(est) || est == '')) {
-      cidades <- unique(locais[locais$estados == est, ]$cidades)
-      return(box(width = NULL, status = "warning", solidHeader = TRUE,
-                 selectInput("cidade_filtro1", "Cidade 1", c('', cidades), selectize = TRUE)))
+      cidades <- sort(unique(locais[locais$estados == est, ]$cidades))
+      return(selectInput("cidade_filtro1", "Cidade 1", c('', cidades), selectize = TRUE))
     }
   })
   observe({
@@ -593,9 +617,8 @@ server <- function(input, output, session) {
   output$html_filtro_cidade2 <- renderUI({
     est <- input$e_c2
     if(!(is.null(est) || est == '')) {
-      cidades <- unique(locais[locais$estados == est, ]$cidades)
-      return(box(width = NULL, status = "warning", solidHeader = TRUE,
-                 selectInput("cidade_filtro2", "Cidade 2", c('', cidades), selectize = TRUE)))
+      cidades <- sort(unique(locais[locais$estados == est, ]$cidades))
+      return(selectInput("cidade_filtro2", "Cidade 2", c('', cidades), selectize = TRUE))
     }
   })
   observe({
