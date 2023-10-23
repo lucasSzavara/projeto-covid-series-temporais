@@ -1,4 +1,4 @@
-# Pacotes
+# Carregar Pacotes
 # install.packages("pacman")
 pacman::p_load(shiny, 
                shinydashboard, 
@@ -10,32 +10,34 @@ pacman::p_load(shiny,
                stringr, 
                drc)
 
-
-
 #------------------------------------------------------------
 
-# Dados para teste
+# Carregar Dados Atuais
 
+# dados_pais <- covid19(country = c('Brazil'), level=1, verbose=F)
 dados_estados <- covid19(country = c('Brazil'), level=2, verbose=F)
-# dados$date <- as.Date(dados$date, format = "%Y-%m-%d")
-locais <- read.csv('estados_cidades.csv')
-# Filtragem dos dados
-# df_confirmed <- dados[,c("id","date","confirmed","administrative_area_level_2","administrative_area_level_3")]
-# df_confirmed <- na.omit(df_confirmed)
+# dados_estados <- covid19(country = c('Brazil'), level=1, verbose=F) #rodar testes mais rapido
+# locais <- read.csv('estados_cidades.csv')
+
 #------------------------------------------------------------
 
-# Selecionadores
+# Carregar Dados Salvos(até 2023-09-30)
 
+dados_pais <- read.csv('dados_pais.csv')
+# dados_estados <- read.csv('dados_estados.csv')
+locais <- read.csv('estados_cidades.csv')
+
+#------------------------------------------------------------
+
+# Definir Selecionadores
 
 est <- c('', sort(unique(locais$estados)))
-
-inicio <- c("Analisar apartir de X confirmados")
 
 #------------------------------------------------------------
 
 # Funções
 
-source("./src/funcoes/corrige_serie_acumulada.R")
+source("./src/funcoes/carregar_dados.R")
 source("./src/server/grafico_series.R")
 source("./src/server/grafico_sazonalidade.R")
 source("./src/server/comp_geo_vacinas.R")
@@ -43,7 +45,7 @@ source("./src/server/tendencia.R")
 
 #------------------------------------------------------------
 
-# Defina o UI
+# Definir o UI
 ui <- dashboardPage(
   dashboardHeader(title = "Covid-19"),
   dashboardSidebar(
@@ -202,7 +204,7 @@ ui <- dashboardPage(
 
 #------------------------------------------------------------
 
-# Defina o servidor
+# Definir o servidor
 server <- function(input, output, session) {
   
   # Lógica ou ações específicas para cada página podem ser adicionadas aqui
@@ -224,7 +226,7 @@ server <- function(input, output, session) {
   
   
   output$grafico_series <- renderPlotly({
-    grafico_series_casos(input,output)
+    render_grafico_series(input, "confirmed")
   })
   
   output$grafico_saz <- renderPlotly({
@@ -233,7 +235,7 @@ server <- function(input, output, session) {
   
   
   output$grafico_series1 <- renderPlotly({
-    grafico_series_mortes(input,output)
+    render_grafico_series(input, "deaths")
   })
   
   
@@ -243,7 +245,7 @@ server <- function(input, output, session) {
   
   
   output$grafico_series2 <- renderPlotly({
-    grafico_series_vacinas(input,output)
+    render_grafico_series(input, "vaccines", 10000)
   })
   
   output$grafico_saz2 <- renderPlotly({

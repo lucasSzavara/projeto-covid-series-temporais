@@ -1,112 +1,50 @@
+# Funçao geral para o grafico de series
 
-# Casos confirmados
-grafico_series_casos <- function(input,output){
-  est <- input$e_c
-  cid <- input$cidade_filtro
-  print(est)
-  print(cid)
-  if(is.null(est) || est == '') {
-    df_cidade <- covid19(country = c('Brazil'), level=1, verbose=F)  %>% filter(date >= input$date_slider[1],
-                                                                                date <= input$date_slider[2])
-  } else {
-    if(!(is.null(cid) || cid == '') && file.exists(paste('dados/dados', est, cid, '.csv'))) {
-      df_cidade <- read.csv(paste('dados/dados', est, cid, '.csv')) %>% filter(date >= input$date_slider[1],
-                                                                               date <= input$date_slider[2])
-    }
-    else {
-      df_cidade <- dados_estados %>% filter(administrative_area_level_2 == est) %>% filter(date >= input$date_slider[1],
-                                                                                           date <= input$date_slider[2])
-    }
-  }
-  df_cidade$date <- as.Date(df_cidade$date)
-  df_cidade <- corrige(df_cidade,"confirmed")
-  
-  p <- df_cidade %>%
+grafico_series <- function(datas, series, titulo_grafico, eixo_x, eixo_y) {
+  tendencias <- estima_tendencia(series)
+  p <- as.data.frame(cbind(serie=series)) %>%
     slice(-1) %>%
-    mutate(confirmed = diff(df_cidade$confirmed)) %>%
-    ggplot(aes(x = date, y = confirmed)) +
+    mutate(serie_mutada = diff(series)) %>%
+    ggplot(aes(x = datas[2:length(datas)], y = serie_mutada)) +
     geom_line(color = "blue") +
-    labs(title = paste("Casos confirmados em", cid, ', ', est), x = "Data", y = "Novos Confirmados Diários") +
+    labs(title = titulo_grafico, x = eixo_x, y = eixo_y) +
     theme_minimal() +
-    scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
+    scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y") +
+    geom_line(aes(x=datas[2:length(datas)], y=diff(tendencias)), color='red')
   
   fig <- ggplotly(p)
   return(fig)
+  
 }
 
-#-----------------------------------------------------------------------------------------------
-
-# Mortes
-
-grafico_series_mortes <- function(input,output){
+render_grafico_series <- function(input, variavel, escala=1) {
   est <- input$e_c
   cid <- input$cidade_filtro
-  print(est)
-  print(cid)
-  if(is.null(est) || est == '') {
-    df_cidade <- covid19(country = c('Brazil'), level=1, verbose=F)  %>% filter(date >= input$date_slider[1],
-                                                                                date <= input$date_slider[2])
+  slider <- input$date_slider
+  
+  df_cidade <- carregar_dados(est, cid, slider, variavel)
+  
+  if (variavel == "confirmed") {
+    aux <- paste("Casos confirmados")
   } else {
-    if(!(is.null(cid) || cid == '') && file.exists(paste('dados/dados', est, cid, '.csv'))) {
-      df_cidade <- read.csv(paste('dados/dados', est, cid, '.csv')) %>% filter(date >= input$date_slider[1],
-                                                                               date <= input$date_slider[2])
-    }
-    else {
-      df_cidade <- dados_estados %>% filter(administrative_area_level_2 == est) %>% filter(date >= input$date_slider[1],
-                                                                                           date <= input$date_slider[2])
+    if (variavel == "deaths") {
+      aux <- paste("Número de mortos")
+    } else {
+      aux <- paste("Doses administradas/10000")
     }
   }
-  df_cidade$date <- as.Date(df_cidade$date)
-  df_cidade <- corrige(df_cidade,"deaths")
   
-  p <- df_cidade %>%
-    slice(-1) %>%
-    mutate(deaths = diff(df_cidade$deaths)) %>%
-    ggplot(aes(x = date, y = deaths)) +
-    geom_line(color = "red") +
-    labs(title = paste("Número de mortos em", cid, ', ', est), x = "Data", y = "Número de Mortes Diárias") +
-    theme_minimal() +
-    scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
-  
-  fig <- ggplotly(p)
-  return(fig)
-}
-
-#-----------------------------------------------------------------------------------------------
-
-# Vacinas
-
-grafico_series_vacinas <- function(input,output){
-  est <- input$e_c
-  cid <- input$cidade_filtro
-  print(est)
-  print(cid)
-  if(is.null(est) || est == '') {
-    df_cidade <- covid19(country = c('Brazil'), level=1, verbose=F)  %>% filter(date >= input$date_slider[1],
-                                                                                date <= input$date_slider[2])
+  if (is.null(est) || est == '') {
+    titulo <- paste(aux, "no Brasil")
   } else {
-    if(!(is.null(cid) || cid == '') && file.exists(paste('dados/dados', est, cid, '.csv'))) {
-      df_cidade <- read.csv(paste('dados/dados', est, cid, '.csv')) %>% filter(date >= input$date_slider[1],
-                                                                               date <= input$date_slider[2])
-    }
-    else {
-      df_cidade <- dados_estados %>% filter(administrative_area_level_2 == est) %>% filter(date >= input$date_slider[1],
-                                                                                           date <= input$date_slider[2])
+    if (!(is.null(cid) || cid == '')) {
+      titulo <- paste(aux, "em", est, "-", cid)
+    } else {
+      titulo <- paste(aux, "em", est)
     }
   }
-  df_cidade$date <- as.Date(df_cidade$date)
-  df_cidade <- corrige(df_cidade,"vaccines")
   
-  p <- df_cidade %>%
-    slice(-1) %>%
-    mutate(vaccines = diff(df_cidade$vaccines)) %>%
-    ggplot(aes(x = date, y = vaccines)) +
-    geom_line(color = "green") +
-    labs(title = paste("Doses de vacinas administradas em", cid, ', ', est), x = "Data", y = "Doses de vacinas Diárias") +
-    theme_minimal() +
-    scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
+  p <- grafico_series(df_cidade$date, df_cidade$confirmed / escala, titulo, "Data", "Novos Confirmados Diários")
   
-  fig <- ggplotly(p)
-  return(fig)
+  return(p)
 }
-

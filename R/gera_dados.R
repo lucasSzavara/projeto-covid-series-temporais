@@ -1,6 +1,10 @@
+# Carregar pacote
 library('COVID19')
 
-x <- covid19(country=c('Brazil'), level=3)
+#------------------------------------------------------------
+
+# Salvar dados de cidades do Brasil em arquivos separados
+x <- covid19(country=c('Brazil'), level=3, verbose=F, vintage = "2023-09-30")
 cidades <- c()
 estados <- c()
 for(uf in unique(x$administrative_area_level_2)){
@@ -12,5 +16,19 @@ for(uf in unique(x$administrative_area_level_2)){
     write.csv(x[x$administrative_area_level_2 == uf & x$administrative_area_level_3 == cidade,], paste('./dados/dados', uf, cidade,'.csv'), row.names = F)
   }
 }
+
+# Salvar o nome de todos estados e cidades
 aux <- data.frame(estados, cidades)
 write.csv(aux[order(aux$estados, aux$cidades), ], './estados_cidades.csv', row.names = F)
+
+#------------------------------------------------------------
+
+#  Salvar dados de estados do Brasil
+y <- covid19(country=c('Brazil'), level=2, verbose=F, vintage = "2023-09-30")
+write.csv(y, './dados_estados.csv', row.names = F)
+
+#------------------------------------------------------------
+
+#  Salvar dados do Brasil
+z <- covid19(country=c('Brazil'), level=1, verbose=F, vintage = "2023-09-30")
+write.csv(z, './dados_pais.csv', row.names = F)

@@ -13,22 +13,16 @@ pacman::p_load(shiny,
 
 #------------------------------------------------------------
 
-# Dados para teste
+# Carregar Dados
 
-dados_estados <- covid19(country = c('Brazil'), level=2, verbose=F)
-# dados$date <- as.Date(dados$date, format = "%Y-%m-%d")
+# dados_estados <- covid19(country = c('Brazil'), level=2, verbose=F)
+dados_estados <- covid19(country = c('Brazil'), level=1, verbose=F) #rodar testes mais rapido(sem considerar os estados)
 locais <- read.csv('estados_cidades.csv')
-# Filtragem dos dados
-# df_confirmed <- dados[,c("id","date","confirmed","administrative_area_level_2","administrative_area_level_3")]
-# df_confirmed <- na.omit(df_confirmed)
 #------------------------------------------------------------
 
-# Selecionadores
-
+# Definir Selecionadores
 
 est <- c('', sort(unique(locais$estados)))
-
-inicio <- c("Analisar apartir de X confirmados")
 
 #------------------------------------------------------------
 
@@ -142,6 +136,35 @@ solve.PiecePoly <- function (a, b = 0, deriv = 0L, ...) {
   unlist(xr)
 }
 
+carregar_dados <- function(est, cid, date_slider, variavel) {
+  # loc <- NULL
+  
+  if (is.null(est) || est == '') {
+    # loc <- c('Brazil')
+    df_cidade <- covid19(country = c('Brazil'), level = 1, verbose = F) %>%
+      filter(date >= date_slider[1], date <= date_slider[2])
+  } else {
+    
+    file_path <- paste('dados/dados', est, cid, '.csv')
+    if (!(is.null(cid) || cid == '') && file.exists(file_path)) {
+      # loc <- c(est, cid)
+      df_cidade <- read.csv(file_path) %>%
+        filter(date >= date_slider[1], date <= date_slider[2])
+      
+    } else {
+      # loc <- c(est)
+      df_cidade <- dados_estados %>%
+        filter(administrative_area_level_2 == est) %>%
+        filter(date >= date_slider[1], date <= date_slider[2])
+    }
+  }
+  df_cidade$date <- as.Date(df_cidade$date)
+  df_cidade <- corrige(df_cidade, variavel)
+  return(df_cidade)
+}
+
+
+
 corrige <- function(df, variavel){
   df[is.na(df)] <- 0
   for(i in 2:length(df[[variavel]])){
@@ -152,7 +175,8 @@ corrige <- function(df, variavel){
   return(df)
 }
 
-grafico_series <- function(datas, series, titulo_grafico, eixo_x, eixo_y) {
+grafico_series <- function(datas, series, titulo_grafico, eixo_x, eixo_y, escala=1) {
+  series <- series/escala
   tendencias <- estima_tendencia(series)
   p <- as.data.frame(cbind(serie=series)) %>%
     slice(-1) %>%
@@ -168,6 +192,35 @@ grafico_series <- function(datas, series, titulo_grafico, eixo_x, eixo_y) {
   return(fig)
   
 }
+
+render_grafico_series <- function(est, cid, slider, variavel, escala=1) {
+  df_cidade <- carregar_dados(est, cid, slider, variavel)
+  
+  if (variavel == "confirmed") {
+    aux <- paste("Casos confirmados")
+  } else {
+    if (variavel == "deaths") {
+      aux <- paste("Número de mortos")
+    } else {
+      aux <- paste("Doses administradas/10000")
+    }
+  }
+  
+  if (is.null(est) || est == '') {
+    titulo <- paste(aux, "no Brasil")
+  } else {
+    if (!(is.null(cid) || cid == '')) {
+      titulo <- paste(aux, "em", est, "-", cid)
+    } else {
+      titulo <- paste(aux, "em", est)
+    }
+  }
+  
+  p <- grafico_series(df_cidade$date, df_cidade$confirmed, titulo, "Data", "Novos Confirmados Diários", escala)
+  
+  return(p)
+}
+
 
 grafico_sazonal <- function(datas, serie, titulo_grafico, eixo_x, eixo_y, periodo, verbose=F) {
   dados = tsibble(
@@ -195,9 +248,9 @@ grafico_sazonal <- function(datas, serie, titulo_grafico, eixo_x, eixo_y, period
   fig <- plotly_build(interactive_plot)
   hover <- c()
   for(i in 1:length(fig$x$data)){
-    if(verbose) {
-      print(fig$x$data[[i]]$text)
-    }
+    # if(verbose) {
+    #   print(fig$x$data[[i]]$text)
+    # }
     fig$x$data[[i]]$hovertemplate <- c(hover, paste('<b>', eixo_y, '</b>: %{y:,.0f}',
                                                     '<b>Data</b>', datas[year(datas)==str_sub(fig$x$data[[i]]$text[1], start=-4)],
                                                     '<extra></extra>'
@@ -433,27 +486,7 @@ server <- function(input, output, session) {
   
   
   output$grafico_series <- renderPlotly({
-    est <- input$e_c
-    cid <- input$cidade_filtro
-    if(is.null(est) || est == '') {
-      df_cidade <- covid19(country = c('Brazil'), level=1, verbose=F)  %>% filter(date >= input$date_slider[1],
-                                                                                  date <= input$date_slider[2])
-    } else {
-      if(!(is.null(cid) || cid == '') && file.exists(paste('dados/dados', est, cid, '.csv'))) {
-        df_cidade <- read.csv(paste('dados/dados', est, cid, '.csv')) %>% filter(date >= input$date_slider[1],
-                                                                                date <= input$date_slider[2])
-      }
-      else {
-        df_cidade <- dados_estados %>% filter(administrative_area_level_2 == est) %>% filter(date >= input$date_slider[1],
-                                                                                             date <= input$date_slider[2])
-      }
-    }
-    df_cidade$date <- as.Date(df_cidade$date)
-    df_cidade <- corrige(df_cidade,"confirmed")
-    titulo = paste("Casos confirmados em", cid, ', ', est)
-    
-    p <- grafico_series(df_cidade$date, df_cidade$confirmed, titulo, "Data", "Novos Confirmados Diários")
-    
+    p <- render_grafico_series(input$e_c, input$cidade_filtro, input$date_slider, "confirmed")
     return(p)
   })
   
@@ -487,27 +520,7 @@ server <- function(input, output, session) {
   
   
   output$grafico_series1 <- renderPlotly({
-    est <- input$e_c
-    cid <- input$cidade_filtro
-    if(is.null(est) || est == '') {
-      df_cidade <- covid19(country = c('Brazil'), level=1, verbose=F)  %>% filter(date >= input$date_slider[1],
-                                                                                  date <= input$date_slider[2])
-    } else {
-      if(!(is.null(cid) || cid == '') && file.exists(paste('dados/dados', est, cid, '.csv'))) {
-        df_cidade <- read.csv(paste('dados/dados', est, cid, '.csv')) %>% filter(date >= input$date_slider[1],
-                                                                                 date <= input$date_slider[2])
-      }
-      else {
-        df_cidade <- dados_estados %>% filter(administrative_area_level_2 == est) %>% filter(date >= input$date_slider[1],
-                                                                                             date <= input$date_slider[2])
-      }
-    }
-    df_cidade$date <- as.Date(df_cidade$date)
-    df_cidade <- corrige(df_cidade,"deaths")
-    titulo = paste("Numero de mortos em", cid, ', ', est)
-    
-    p <- grafico_series(df_cidade$date, df_cidade$deaths, titulo, "Data", "Novos Confirmados Diários")
-    
+    p <- render_grafico_series(input$e_c, input$cidade_filtro, input$date_slider, "deaths")
     return(p)
   })
   
