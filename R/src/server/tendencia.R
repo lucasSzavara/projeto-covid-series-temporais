@@ -151,7 +151,6 @@ estima_tendencia <- function(serie) {
   model_formula <- reformulate(termlabels = factors, response = 'y')
   t <- 1:length(serie)
   ip <- c()
-  print(minimos)
   for (i in 1:N) {
     if(i == N) {
       yi <- serie[as.integer(minimos[i]):length(serie)] - serie[as.integer(minimos[i])-1]
@@ -166,8 +165,9 @@ estima_tendencia <- function(serie) {
     ip <- cbind(ip, ipi)
   }
   dados <- data.frame(y=serie, x=t)
-  ctrl <- nls.control(maxiter = 500)
-  fit <- nls(model_formula, dados, start=ip[1,], control = ctrl)
+  ctrl <- nls.control(maxiter = 500, warnOnly=T)
+  
+  fit <- nls(model_formula, dados, start=ip[1,], control = ctrl, algorithm='port')
   
   return(predict(fit))
 }
