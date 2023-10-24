@@ -1,5 +1,7 @@
 .idea
 __pycache__/
 R/dados
+R/dados_estados.csv
+R/dados_pais.csv
 R/.RData
 R/.Rhistory

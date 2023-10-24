@@ -2,6 +2,13 @@
 
 #-----------------------------------------------------------------------------------------------
 
+# Carregar Dados Salvos(até 2023-09-30)
+dados_pais <- read.csv('dados_pais.csv')
+dados_estados <- covid19(country = c('Brazil'), level=2, verbose=F)
+# dados_estados <- covid19(country = c('Brazil'), level=1, verbose=F) #rodar testes mais rapido
+
+#-----------------------------------------------------------------------------------------------
+
 # Transformar dados acumulados em diários
 corrige <- function(df, variavel){
   df[is.na(df)] <- 0

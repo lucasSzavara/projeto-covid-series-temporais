@@ -12,19 +12,7 @@ pacman::p_load(shiny,
 
 #------------------------------------------------------------
 
-# Carregar Dados Atuais
-
-# dados_pais <- covid19(country = c('Brazil'), level=1, verbose=F)
-# dados_estados <- covid19(country = c('Brazil'), level=2, verbose=F)
-dados_estados <- covid19(country = c('Brazil'), level=1, verbose=F) #rodar testes mais rapido
-# locais <- read.csv('estados_cidades.csv')
-
-#------------------------------------------------------------
-
-# Carregar Dados Salvos(até 2023-09-30)
-
-dados_pais <- read.csv('dados_pais.csv')
-# dados_estados <- read.csv('dados_estados.csv')
+# Carregar lista de nomes de estados e respectivas cidades
 locais <- read.csv('estados_cidades.csv')
 
 #------------------------------------------------------------
@@ -38,6 +26,7 @@ est <- c('', sort(unique(locais$estados)))
 # Funções
 
 source("./src/funcoes/carregar_dados.R")
+source("./src/funcoes/titulos.R")
 source("./src/server/grafico_series.R")
 source("./src/server/grafico_sazonalidade.R")
 source("./src/server/comp_geo_vacinas.R")
@@ -226,8 +215,8 @@ server <- function(input, output, session) {
   
   
   output$grafico_series <- renderPlotly({
-    grafico_series_casos(input,output)
-    # render_grafico_series(input, "confirmed")
+    # grafico_series_casos(input,output)
+    render_grafico_series(input, "confirmed")
   })
   
   output$grafico_saz <- renderPlotly({
@@ -236,8 +225,8 @@ server <- function(input, output, session) {
   
   
   output$grafico_series1 <- renderPlotly({
-    grafico_series_mortes(input,output)
-    # render_grafico_series(input, "deaths")
+    # grafico_series_mortes(input,output)
+    render_grafico_series(input, "deaths")
   })
   
   
@@ -247,8 +236,8 @@ server <- function(input, output, session) {
   
   
   output$grafico_series2 <- renderPlotly({
-    grafico_series_vacinas(input,output)
-    # render_grafico_series(input, "vaccines", 10000)
+    # grafico_series_vacinas(input,output)
+    render_grafico_series(input, "vaccines", 10000)
   })
   
   output$grafico_saz2 <- renderPlotly({

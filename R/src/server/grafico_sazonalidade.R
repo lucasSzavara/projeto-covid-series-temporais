@@ -108,8 +108,6 @@ grafico_sazonalidade_mortes <- function(input,output){
 grafico_sazonalidade_vacinas <- function(input,output){
   est <- input$e_c
   cid <- input$cidade_filtro
-  print(est)
-  print(cid)
   if(is.null(est) || est == '') {
     df_cidade <- covid19(country = c('Brazil'), level=1, verbose=F)  %>% filter(date >= input$date_slider[1],
                                                                                 date <= input$date_slider[2])
@@ -125,12 +123,15 @@ grafico_sazonalidade_vacinas <- function(input,output){
   }
   df_cidade$date <- as.Date(df_cidade$date)
   df_cidade <- corrige(df_cidade,"vaccines")
-  
+  # print(df_cidade$vaccines)
+  # df_cidade <- df_cidade %>%
+  #   mutate(vaccines = diff(df_cidade$vaccines))
+  # print(df_cidade$vaccines)
   df_cidade <- df_cidade %>%
     slice(-1) %>%
     mutate(vaccines = diff(df_cidade$vaccines))
   
-  p <- grafico_sazonal(df_cidade$date,df_cidade$vaccines,"Doses de vacinas administradas em anos sucessivos","Data","Doses de vacinas","year")
+  p <- grafico_sazonal(df_cidade$date,df_cidade$vaccines/10000,"Doses de vacinas administradas por 10.000 habitantes em anos sucessivos","Data","Doses de vacinas","year")
   
   return(p)
 }

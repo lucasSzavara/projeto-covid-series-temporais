@@ -166,7 +166,8 @@ estima_tendencia <- function(serie) {
     ip <- cbind(ip, ipi)
   }
   dados <- data.frame(y=serie, x=t)
-  fit <- nls(model_formula, dados, start=ip[1,])
+  ctrl <- nls.control(maxiter = 500)
+  fit <- nls(model_formula, dados, start=ip[1,], control = ctrl)
   
   return(predict(fit))
 }
