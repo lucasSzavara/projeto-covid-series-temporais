@@ -128,7 +128,7 @@ grafico_series <- function(datas, series, titulo_grafico, eixo_x, eixo_y) {
 
 
 estima_tendencia <- function(serie) {
-  print(serie)
+  # print(serie)
   serie[is.na(serie)] <- 0
   # cálculo da série diária
   y <- c(1, diff(serie))

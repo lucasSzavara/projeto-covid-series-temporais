@@ -29,6 +29,8 @@ source("./src/funcoes/carregar_dados.R")
 source("./src/funcoes/titulos.R")
 source("./src/server/grafico_series.R")
 source("./src/server/grafico_sazonalidade.R")
+source("./src/server/grafico_series_estac.R")
+source("./src/server/grafico_ACF.R")
 source("./src/server/comp_geo_vacinas.R")
 source("./src/server/tendencia.R")
 
@@ -70,7 +72,6 @@ ui <- dashboardPage(
                 column(width = 4,
                        box(width = NULL, status = "warning", solidHeader = TRUE,
                            sliderInput("date_slider", "Período", min = min(dados_estados$date), max = max(dados_estados$date),
-                                       
                                        value = c(min(dados_estados$date), max(dados_estados$date)))
                        )
                 )
@@ -93,6 +94,20 @@ ui <- dashboardPage(
                 column(width = 6, 
                        box(width = NULL, solidHeader = TRUE, 
                            plotlyOutput("grafico_saz", height = 500)
+                       )
+                )
+              ),
+              
+              fluidRow(
+                column(width = 6, 
+                       box(width = NULL, solidHeader = TRUE, 
+                           plotlyOutput("grafico_series_estac", height = 500)
+                       )
+                ),
+
+                column(width = 6,
+                       box(width = NULL, solidHeader = TRUE,
+                           plotOutput("grafico_ACF", height = 500)
                        )
                 )
               ),
@@ -120,6 +135,20 @@ ui <- dashboardPage(
               ),
               
               fluidRow(
+                column(width = 6, 
+                       box(width = NULL, solidHeader = TRUE, 
+                           plotlyOutput("grafico_series_estac1", height = 500)
+                       )
+                ),
+
+                column(width = 6,
+                       box(width = NULL, solidHeader = TRUE,
+                           plotOutput("grafico_ACF1", height = 500)
+                       )
+                )
+              ),
+              
+              fluidRow(
                 column(width = 12, 
                        h2(" 3) Doses de Vacinas administradas")
                 )
@@ -134,6 +163,20 @@ ui <- dashboardPage(
                 column(width = 6, 
                        box(width = NULL, solidHeader = TRUE, 
                            plotlyOutput("grafico_saz2", height = 500)
+                       )
+                )
+              ),
+              
+              fluidRow(
+                column(width = 6, 
+                       box(width = NULL, solidHeader = TRUE, 
+                           plotlyOutput("grafico_series_estac2", height = 500)
+                       )
+                ),
+
+                column(width = 6,
+                       box(width = NULL, solidHeader = TRUE,
+                           plotOutput("grafico_ACF2", height = 500)
                        )
                 )
               )
@@ -157,7 +200,6 @@ ui <- dashboardPage(
                 column(width = 4,
                        box(width = NULL, status = "warning", solidHeader = TRUE,
                            sliderInput("data_slider1", "Período", min = min(dados_estados$date), max = max(dados_estados$date),
-                                       
                                        value = c(min(dados_estados$date), max(dados_estados$date)))
                        )
                        
@@ -213,9 +255,9 @@ server <- function(input, output, session) {
     updateSelectInput(session, 'cidade_filtro', selected='')
   })
   
+#------------------------------------------------------------
   
   output$grafico_series <- renderPlotly({
-    # grafico_series_casos(input,output)
     render_grafico_series(input, "confirmed")
   })
   
@@ -223,9 +265,17 @@ server <- function(input, output, session) {
     grafico_sazonalidade_casos(input,output)
   })
   
+  output$grafico_series_estac <- renderPlotly({
+    render_grafico_series_estacionaria(input, "confirmed")
+  })
+  
+  output$grafico_ACF <- renderPlotly({
+    render_grafico_ACF(input, "confirmed")
+  })
+
+#------------------------------------------------------------
   
   output$grafico_series1 <- renderPlotly({
-    # grafico_series_mortes(input,output)
     render_grafico_series(input, "deaths")
   })
   
@@ -234,14 +284,30 @@ server <- function(input, output, session) {
     grafico_sazonalidade_mortes(input,output)
   })
   
+  output$grafico_series_estac1 <- renderPlotly({
+    render_grafico_series_estacionaria(input, "deaths")
+  })
+  
+  output$grafico_ACF1 <- renderPlotly({
+    render_grafico_ACF(input, "deaths")
+  })
+  
+#------------------------------------------------------------
   
   output$grafico_series2 <- renderPlotly({
-    # grafico_series_vacinas(input,output)
     render_grafico_series(input, "vaccines", 10000)
   })
   
   output$grafico_saz2 <- renderPlotly({
     grafico_sazonalidade_vacinas(input,output)
+  })
+  
+  output$grafico_series_estac2 <- renderPlotly({
+    render_grafico_series_estacionaria(input, "vaccines", 10000)
+  })
+  
+  output$grafico_ACF2 <- renderPlotly({
+    render_grafico_ACF(input, "vaccines", 10000)
   })
   
   #================================================================== END: EVOLUÇÃO
