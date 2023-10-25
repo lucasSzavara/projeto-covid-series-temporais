@@ -33,6 +33,10 @@ grafico_sazonal <- function(datas, serie, titulo_grafico, eixo_x, eixo_y, period
                                                     '<extra></extra>'
     ))
   }
+  fig <- fig %>%
+    layout(showlegend = F,
+           xaxis = list(rangeslider = list(visible=T)))
+  
   return(fig)
 }
 

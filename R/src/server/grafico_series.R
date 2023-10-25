@@ -14,10 +14,10 @@ grafico_series <- function(datas, series, titulo_grafico, eixo_x, eixo_y) {
     theme_minimal() +
     scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y") +
     geom_line(aes(x=datas[2:length(datas)], y=diff(tendencias)), color='red')
-
+  
   fig <- ggplotly(p)
-  return(fig)
 
+  return(fig)
 }
 
 #-----------------------------------------------------------------------------------------------
@@ -38,6 +38,10 @@ render_grafico_series <- function(input, variavel, escala=1) {
   titulo <- titulo_series(variavel, est, cid)
 
   p <- grafico_series(df$date, df[[variavel]] / escala, titulo, "Data", "Novos Confirmados Diários")
-
+  
+  p <- p %>%
+    layout(showlegend = F,
+           xaxis = list(rangeslider = list(visible=T)))
+  
   return(p)
 }

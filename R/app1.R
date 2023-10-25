@@ -78,108 +78,111 @@ ui <- dashboardPage(
                 
               ),
               
-              fluidRow(
-                column(width = 12, 
-                       h2(" 1) Confirmados")
-                )
-              ),
-              
-              fluidRow(
-                column(width = 6, 
-                       box(width = NULL, solidHeader = TRUE, 
-                           plotlyOutput("grafico_series", height = 500)
-                       )
+              tabsetPanel(
+                id = "tabs",
+                tabPanel("Confirmados", 
+                         conditionalPanel(
+                           condition = "input.tabs == 'Confirmados'",
+                           fluidRow(
+                             column(width = 6,
+                                    box(width = NULL, solidHeader = TRUE,
+                                        plotlyOutput("grafico_series", height = 500)
+                                    )
+                             ),
+                             
+                             column(width = 6,
+                                    box(width = NULL, solidHeader = TRUE,
+                                        plotlyOutput("grafico_saz", height = 500)
+                                    )
+                             )
+                           ),
+                           
+                           fluidRow(
+                             column(width = 6,
+                                    box(width = NULL, solidHeader = TRUE,
+                                        plotlyOutput("grafico_series_estac", height = 500)
+                                    )
+                             ),
+                             
+                             column(width = 6,
+                                    box(width = NULL, solidHeader = TRUE,
+                                        plotOutput("grafico_ACF", height = 500)
+                                    )
+                             )
+                           )
+                         )
                 ),
-                
-                column(width = 6, 
-                       box(width = NULL, solidHeader = TRUE, 
-                           plotlyOutput("grafico_saz", height = 500)
-                       )
-                )
-              ),
-              
-              fluidRow(
-                column(width = 6, 
-                       box(width = NULL, solidHeader = TRUE, 
-                           plotlyOutput("grafico_series_estac", height = 500)
-                       )
+                tabPanel("Mortalidade", 
+                         conditionalPanel(
+                           condition = "input.tabs == 'Mortalidade'",
+                           fluidRow(
+                             column(width = 6,
+                                    box(width = NULL, solidHeader = TRUE,
+                                        plotlyOutput("grafico_series1", height = 500)
+                                    )
+                             ),
+                             
+                             column(width = 6,
+                                    box(width = NULL, solidHeader = TRUE,
+                                        plotlyOutput("grafico_saz1", height = 500)
+                                    )
+                             )
+                           ),
+                           
+                           fluidRow(
+                             column(width = 6,
+                                    box(width = NULL, solidHeader = TRUE,
+                                        plotlyOutput("grafico_series_estac1", height = 500)
+                                    )
+                             ),
+                             
+                             column(width = 6,
+                                    box(width = NULL, solidHeader = TRUE,
+                                        plotOutput("grafico_ACF1", height = 500)
+                                    )
+                             )
+                           )
+                         )
                 ),
-
-                column(width = 6,
-                       box(width = NULL, solidHeader = TRUE,
-                           plotOutput("grafico_ACF", height = 500)
-                       )
+                tabPanel("Vacinas", 
+                         conditionalPanel(
+                           condition = "input.tabs == 'Vacinas'",
+                           fluidRow(
+                             column(width = 6,
+                                    box(width = NULL, solidHeader = TRUE,
+                                        plotlyOutput("grafico_series2", height = 500)
+                                    )
+                             ),
+                             
+                             column(width = 6,
+                                    box(width = NULL, solidHeader = TRUE,
+                                        plotlyOutput("grafico_saz2", height = 500)
+                                    )
+                             )
+                           ),
+                           
+                           fluidRow(
+                             column(width = 6,
+                                    box(width = NULL, solidHeader = TRUE,
+                                        plotlyOutput("grafico_series_estac2", height = 500)
+                                    )
+                             ),
+                             
+                             column(width = 6,
+                                    box(width = NULL, solidHeader = TRUE,
+                                        plotOutput("grafico_ACF2", height = 500)
+                                    )
+                             )
+                           )
+                         )
                 )
-              ),
-              
-              
-              
-              fluidRow(
-                column(width = 12, 
-                       h2(" 2) Mortalidade")
-                )
-              ),
-              
-              fluidRow(
-                column(width = 6, 
-                       box(width = NULL, solidHeader = TRUE, 
-                           plotlyOutput("grafico_series1", height = 500)
-                       )
-                ),
-                
-                column(width = 6, 
-                       box(width = NULL, solidHeader = TRUE, 
-                           plotlyOutput("grafico_saz1", height = 500)
-                       )
-                )
-              ),
-              
-              fluidRow(
-                column(width = 6, 
-                       box(width = NULL, solidHeader = TRUE, 
-                           plotlyOutput("grafico_series_estac1", height = 500)
-                       )
-                ),
-
-                column(width = 6,
-                       box(width = NULL, solidHeader = TRUE,
-                           plotOutput("grafico_ACF1", height = 500)
-                       )
-                )
-              ),
-              
-              fluidRow(
-                column(width = 12, 
-                       h2(" 3) Doses de Vacinas administradas")
-                )
-              ),
-              
-              fluidRow(
-                column(width = 6, 
-                       box(width = NULL, solidHeader = TRUE, 
-                           plotlyOutput("grafico_series2", height = 500)
-                       )
-                ),
-                column(width = 6, 
-                       box(width = NULL, solidHeader = TRUE, 
-                           plotlyOutput("grafico_saz2", height = 500)
-                       )
-                )
-              ),
-              
-              fluidRow(
-                column(width = 6, 
-                       box(width = NULL, solidHeader = TRUE, 
-                           plotlyOutput("grafico_series_estac2", height = 500)
-                       )
-                ),
-
-                column(width = 6,
-                       box(width = NULL, solidHeader = TRUE,
-                           plotOutput("grafico_ACF2", height = 500)
-                       )
-                )
+                # Adicione mais abas conforme necessário, sem vírgula após a última
               )
+              
+              
+              
+              
+              
       ),
       
       tabItem("dg",
