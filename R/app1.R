@@ -8,7 +8,8 @@ pacman::p_load(shiny,
                plotly, 
                forecast, 
                stringr, 
-               drc)
+               drc,
+               ggpubr)
 
 #------------------------------------------------------------
 
@@ -272,7 +273,7 @@ server <- function(input, output, session) {
     render_grafico_series_estacionaria(input, "confirmed")
   })
   
-  output$grafico_ACF <- renderPlotly({
+  output$grafico_ACF <- renderPlot({
     render_grafico_ACF(input, "confirmed")
   })
 
@@ -291,7 +292,7 @@ server <- function(input, output, session) {
     render_grafico_series_estacionaria(input, "deaths")
   })
   
-  output$grafico_ACF1 <- renderPlotly({
+  output$grafico_ACF1 <- renderPlot({
     render_grafico_ACF(input, "deaths")
   })
   
@@ -309,7 +310,7 @@ server <- function(input, output, session) {
     render_grafico_series_estacionaria(input, "vaccines", 10000)
   })
   
-  output$grafico_ACF2 <- renderPlotly({
+  output$grafico_ACF2 <- renderPlot({
     render_grafico_ACF(input, "vaccines", 10000)
   })
   
