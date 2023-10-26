@@ -23,9 +23,12 @@ write.csv(aux[order(aux$estados, aux$cidades), ], './estados_cidades.csv', row.n
 
 #------------------------------------------------------------
 
-#  Salvar dados de estados do Brasil
-y <- covid19(country=c('Brazil'), level=2, verbose=F, vintage = "2023-09-30")
-write.csv(y, './dados_estados.csv', row.names = F)
+# Salvar dados de estados do Brasil em arquivos separados
+x <- covid19(country=c('Brazil'), level=2, verbose=F, vintage = "2023-09-30")
+for(uf in unique(x$administrative_area_level_2)){
+  cat('\nComeçando estado: ', uf)
+  write.csv(x[x$administrative_area_level_2 == uf,], paste('./dados/estados/dados', uf,'.csv'), row.names = F)
+  }
 
 #------------------------------------------------------------
 

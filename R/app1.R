@@ -39,6 +39,7 @@ source("./src/server/tendencia.R")
 
 # Definir o UI
 ui <- dashboardPage(
+# ui <- dashboardPage(skin = "purple",
   dashboardHeader(title = "Covid-19"),
   dashboardSidebar(
     sidebarMenu(

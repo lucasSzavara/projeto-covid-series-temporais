@@ -16,14 +16,12 @@ grafico_ACF <- function(df, variavel, escala, titulo_grafico, eixo_x, eixo_y) {
     slice(-1) %>%
     mutate(sem_tendencia = diff(df[[variavel]]) - diff(tendencias))
   
-  print("a1")
   # Autocorrelação depois de retirar a tendência
   dados = tsibble(
     data = df_sem_tendencia$date,
     y = df_sem_tendencia$sem_tendencia,
     index = data
   )
-  print("a2")
   
   # Gerar o gráfico
   G <- 
@@ -36,8 +34,7 @@ grafico_ACF <- function(df, variavel, escala, titulo_grafico, eixo_x, eixo_y) {
       title = titulo_grafico
     ) +
     coord_cartesian(ylim=c(-1,1)) +
-    theme_minimal() +
-    ggtitle(titulo_grafico)
+    theme_minimal()
   
   return(G)
 }

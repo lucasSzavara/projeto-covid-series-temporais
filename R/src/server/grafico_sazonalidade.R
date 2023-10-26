@@ -1,6 +1,15 @@
 
 # Gráfico sazonalidade
 
+# Remover quando arrumar a funçao
+# Remover quando arrumar a funçao
+# Remover quando arrumar a funçao
+dados_estados <- covid19(country = c('Brazil'), level=1, verbose=F)
+# Remover quando arrumar a funçao
+# Remover quando arrumar a funçao
+# Remover quando arrumar a funçao
+
+
 grafico_sazonal <- function(datas, serie, titulo_grafico, eixo_x, eixo_y, periodo) {
   dados = tsibble(
     data = datas,
@@ -46,8 +55,8 @@ grafico_sazonal <- function(datas, serie, titulo_grafico, eixo_x, eixo_y, period
 grafico_sazonalidade_casos <- function(input,output){
   est <- input$e_c
   cid <- input$cidade_filtro
-  print(est)
-  print(cid)
+  # print(est)
+  # print(cid)
   if(is.null(est) || est == '') {
     df_cidade <- covid19(country = c('Brazil'), level=1, verbose=F)  %>% filter(date >= input$date_slider[1],
                                                                                 date <= input$date_slider[2])
@@ -79,8 +88,8 @@ grafico_sazonalidade_casos <- function(input,output){
 grafico_sazonalidade_mortes <- function(input,output){
   est <- input$e_c
   cid <- input$cidade_filtro
-  print(est)
-  print(cid)
+  # print(est)
+  # print(cid)
   if(is.null(est) || est == '') {
     df_cidade <- covid19(country = c('Brazil'), level=1, verbose=F)  %>% filter(date >= input$date_slider[1],
                                                                                 date <= input$date_slider[2])
