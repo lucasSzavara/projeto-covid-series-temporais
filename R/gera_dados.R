@@ -13,13 +13,13 @@ for(uf in unique(x$administrative_area_level_2)){
     cat('\nComeçando cidade: ', cidade)
     cidades <- c(cidades, cidade)
     estados <- c(estados, uf)
-    write.csv(x[x$administrative_area_level_2 == uf & x$administrative_area_level_3 == cidade,], paste('./dados/dados', uf, cidade,'.csv'), row.names = F)
+    write.csv(x[x$administrative_area_level_2 == uf & x$administrative_area_level_3 == cidade,], paste('./dados/cidades/dados', uf, cidade,'.csv'), row.names = F)
   }
 }
 
 # Salvar o nome de todos estados e cidades
 aux <- data.frame(estados, cidades)
-write.csv(aux[order(aux$estados, aux$cidades), ], './estados_cidades.csv', row.names = F)
+write.csv(aux[order(aux$estados, aux$cidades), ], './dados/auxiliar/estados_cidades.csv', row.names = F)
 
 #------------------------------------------------------------
 
@@ -34,4 +34,4 @@ for(uf in unique(x$administrative_area_level_2)){
 
 #  Salvar dados do Brasil
 z <- covid19(country=c('Brazil'), level=1, verbose=F, vintage = "2023-09-30")
-write.csv(z, './dados_pais.csv', row.names = F)
+write.csv(z, './dados/pais/dados_pais.csv', row.names = F)

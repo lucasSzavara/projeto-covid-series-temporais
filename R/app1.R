@@ -14,7 +14,7 @@ pacman::p_load(shiny,
 #------------------------------------------------------------
 
 # Carregar lista de nomes de estados e respectivas cidades
-locais <- read.csv('estados_cidades.csv')
+locais <- read.csv('dados/auxiliar/estados_cidades.csv')
 
 #------------------------------------------------------------
 
@@ -24,16 +24,10 @@ est <- c('', sort(unique(locais$estados)))
 
 #------------------------------------------------------------
 
-# Funções
+# Carregar Funções
 
-source("./src/funcoes/carregar_dados.R")
-source("./src/funcoes/titulos.R")
-source("./src/server/grafico_series.R")
-source("./src/server/grafico_sazonalidade.R")
-source("./src/server/grafico_series_estac.R")
-source("./src/server/grafico_ACF.R")
-source("./src/server/comp_geo_vacinas.R")
-source("./src/server/tendencia.R")
+source("./src/funcoes/index.R")
+source("./src/server/index.R")
 
 #------------------------------------------------------------
 

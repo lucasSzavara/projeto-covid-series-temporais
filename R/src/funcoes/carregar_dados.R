@@ -2,14 +2,17 @@
 
 #-----------------------------------------------------------------------------------------------
 
-# Carregar Dados Salvos(até 2023-09-30)
-dados_pais <- read.csv('dados_pais.csv')
-# dados_estados <- covid19(country = c('Brazil'), level=2, verbose=F)
-# dados_estados <- covid19(country = c('Brazil'), level=1, verbose=F) #rodar testes mais rapido
+# Carregar lista de nomes de estados e respectivas cidades
+locais <- read.csv('dados/auxiliar/estados_cidades.csv')
 
 #-----------------------------------------------------------------------------------------------
 
-# Transformar dados acumulados em diários
+# Carregar Dados Salvos(até 2023-09-30)
+dados_pais <- read.csv('dados/pais/dados_pais.csv')
+
+#-----------------------------------------------------------------------------------------------
+
+# Transformar dados
 corrige <- function(df, variavel){
   df[is.na(df)] <- 0
   for(i in 2:length(df[[variavel]])){
@@ -30,7 +33,7 @@ carregar_dados <- function(est, cid, date_slider, variavel) {
       filter(date >= date_slider[1], date <= date_slider[2])
   } else {
     
-    file_path <- paste('dados/dados', est, cid, '.csv')
+    file_path <- paste('dados/cidades/dados', est, cid, '.csv')
     if (!(is.null(cid) || cid == '') && file.exists(file_path)) {
       df <- read.csv(file_path) %>%
         filter(date >= date_slider[1], date <= date_slider[2])
