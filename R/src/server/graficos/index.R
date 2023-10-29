@@ -1,0 +1,6 @@
+source("./src/server/graficos/grafico_series.R")
+source("./src/server/graficos/grafico_sazonalidade.R")
+source("./src/server/graficos/grafico_series_estac.R")
+source("./src/server/graficos/grafico_ACF.R")
+source("./src/server/graficos/comp_geo_vacinas.R")
+source("./src/server/graficos/tendencia.R")

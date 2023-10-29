@@ -1,3 +1,6 @@
+# Remover
+dados_estados <- read.csv('dados/pais/dados_pais.csv')
+# Remover
 
 grafico_vac_comp_geo <- function(input,output){
   est1 <- input$e_c1

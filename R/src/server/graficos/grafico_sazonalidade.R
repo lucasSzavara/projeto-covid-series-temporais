@@ -1,14 +1,8 @@
+# Remover
+dados_estados <- read.csv('dados/pais/dados_pais.csv')
+# Remover
 
 # Gráfico sazonalidade
-
-# Remover quando arrumar a funçao
-# Remover quando arrumar a funçao
-# Remover quando arrumar a funçao
-dados_estados <- covid19(country = c('Brazil'), level=1, verbose=F)
-# Remover quando arrumar a funçao
-# Remover quando arrumar a funçao
-# Remover quando arrumar a funçao
-
 
 grafico_sazonal <- function(datas, serie, titulo_grafico, eixo_x, eixo_y, periodo) {
   dados = tsibble(
