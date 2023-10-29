@@ -3,7 +3,7 @@
 #-----------------------------------------------------------------------------------------------
 
 # Carregar lista de nomes de estados e respectivas cidades
-locais <- read.csv('dados/auxiliar/estados_cidades.csv')
+# locais <- read.csv('dados/estados_cidades.csv')
 
 #-----------------------------------------------------------------------------------------------
 

@@ -6,7 +6,7 @@ pacman::p_load(shiny,
 #------------------------------------------------------------
 
 # Carregar lista de nomes de estados e respectivas cidades
-locais <- read.csv('dados/auxiliar/estados_cidades.csv')
+locais <- read.csv('dados/estados_cidades.csv')
 dados_pais <- read.csv('dados/pais/dados_pais.csv')
 dados_pais$date <- as.Date(dados_pais$date)
 

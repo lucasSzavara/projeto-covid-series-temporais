@@ -5,8 +5,9 @@ pacman::p_load(shiny,
 #------------------------------------------------------------
 
 # Carregar Funções
-source("./src/funcoes auxiliares/index.R")
+source("./src/services/index.R")
 source("./src/server/graficos/index.R")
+source("./tendencia.R")
 
 #------------------------------------------------------------
 
