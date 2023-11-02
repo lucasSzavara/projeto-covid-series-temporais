@@ -1,7 +1,43 @@
 # Carregar Pacotes
 pacman::p_load(shiny, 
-               shinydashboard,
+               shinydashboard, 
+               shinyWidgets, 
                plotly)
+
+# Função para personalizar a cor dos sliders
+# https://github.com/dreamRs/shinyWidgets/blob/26838f9e9ccdc90a47178b45318d110f5812d6e1/R/setSliderColor.R
+setSliderColor <- function(color, sliderId) {
+  # some tests to control inputs
+  stopifnot(!is.null(color))
+  stopifnot(is.character(color))
+  stopifnot(is.numeric(sliderId))
+  stopifnot(!is.null(sliderId))
+  
+  # the css class for ionrangeslider starts from 0
+  # therefore need to remove 1 from sliderId
+  sliderId <- sliderId - 1
+  
+  # create custom css background for each slider
+  # selected by the user
+  sliderCol <- lapply(sliderId, FUN = function(i) {
+    paste0(
+      ".js-irs-", i, " .irs-single,",
+      " .js-irs-", i, " .irs-from,",
+      " .js-irs-", i, " .irs-to,",
+      " .js-irs-", i, " .irs-bar-edge,",
+      " .js-irs-", i,
+      " .irs-bar{  border-color: transparent;background: ", color[i+1],
+      "; border-top: 1px solid ", color[i+1],
+      "; border-bottom: 1px solid ", color[i+1],
+      ";}"
+    )
+  })
+  
+  # insert this custom css code in the head
+  # of the shiny app
+  custom_head <- tags$head(tags$style(HTML(as.character(sliderCol))))
+  return(custom_head)
+}
 
 #------------------------------------------------------------
 
@@ -20,42 +56,44 @@ est <- c('', sort(unique(locais$estados)))
 # Definir o UI
 ui <- dashboardPage(
   # ui <- dashboardPage(skin = "purple",
-  dashboardHeader(title = "Covid-19"),
+  dashboardHeader(title = span(icon("viruses"), "Covid-19")),
   dashboardSidebar(
     sidebarMenu(
-      menuItem("Visão Geral", tabName = "vg", icon = icon("virus")),
-      menuItem("Evolução", tabName = "vis", icon = icon("th")),
-      menuItem("Diferenças geográficas", tabName = "dg", icon = icon("chart-line")),
-      menuItem("Efeito de medidas políticas", tabName = "efeito",icon = icon("globe")),
-      menuItem("Índices", tabName = "ind",icon = icon("signal"))
+      menuItem("Visão Geral", tabName = "vg", icon = icon("magnifying-glass")),
+      menuItem("Evolução", tabName = "evo", icon = icon("chart-line")),
+      menuItem("Diferenças geográficas", tabName = "dg", icon = icon("arrow-down-up-across-line")),
+      menuItem("Efeito de medidas políticas", tabName = "efeito",icon = icon("landmark")),
+      menuItem("Índices", tabName = "ind",icon = icon("signal")),
+      menuItem("Sobre", tabName = "sobre",icon = icon("circle-info"))
     )
   ),
   dashboardBody(
+    setSliderColor(c("#00C0EF", "#00C0EF"), c(1, 2)),  # Aplica a cor aos dois sliders
+    chooseSliderSkin("Flat"),
     tabItems(
       tabItem(tabName = "vg",
               h2("Visão Geral"),
               p("Menu sobre covid-19 no Brasil")
               # Adicione elementos específicos para a Página 1 aqui
       ),
-      tabItem(tabName = "vis",
+      tabItem(tabName = "evo",
               fluidRow(
                 column(width = 4,
-                       box(width = NULL, status = "warning", solidHeader = TRUE,
+                       box(title = span(icon("location-dot"), " Selecione a região de sua preferência"),
+                           width = NULL, status = "info", solidHeader = TRUE,
                            selectInput("e_c", "Estado", est, selectize = TRUE)
+                           ,uiOutput('html_filtro_cidade'), collapsible = TRUE
                        )
                 ),
                 
-                column(width = 4,
-                       box(width = NULL, status = "warning", solidHeader = TRUE,
-                           uiOutput('html_filtro_cidade')
-                       )
-                ),
-                
-                column(width = 4,
-                       box(width = NULL, status = "warning", solidHeader = TRUE,
-                           sliderInput("date_slider", "Período", min = min(dados_pais$date), max = max(dados_pais$date),
-                                       value = c(min(dados_pais$date), max(dados_pais$date)))
-                       )
+                column(
+                  width = 4,
+                  box(title = span(icon("calendar"), " Selecione o período de sua preferência"),
+                      width = NULL, status = "info", solidHeader = TRUE,
+                      sliderInput("date_slider", "Período", min = min(dados_pais$date), max = max(dados_pais$date),
+                                  value = c(min(dados_pais$date), max(dados_pais$date))),
+                      collapsible = TRUE
+                  )
                 )
                 
               ),
@@ -170,20 +208,24 @@ ui <- dashboardPage(
       tabItem("dg",
               fluidRow(
                 column(width = 4, 
-                       box(width = NULL, status = "warning", solidHeader = TRUE,
+                       box(title = span(icon("location-dot"), " Selecione a região de sua preferência"), 
+                           width = NULL, status = "info", solidHeader = TRUE,
                            selectInput("e_c1", "Estado1", est, selectize = TRUE),
-                           uiOutput('html_filtro_cidade1')
+                           uiOutput('html_filtro_cidade1'), collapsible = TRUE
                        ),
                 ),
                 
                 column(width = 4,
-                       box(width = NULL, status = "warning", solidHeader = TRUE,
+                       box(title = span(icon("location-dot"), " Selecione a região de sua preferência"), 
+                           width = NULL, status = "info", solidHeader = TRUE,
                            selectInput("e_c2", "Estado2", est, selectize = TRUE),
-                           uiOutput('html_filtro_cidade2'))
+                           uiOutput('html_filtro_cidade2'), collapsible = TRUE
+                       ),
                 ),
                 
                 column(width = 4,
-                       box(width = NULL, status = "warning", solidHeader = TRUE,
+                       box(title = span(icon("calendar"), " Selecione o período de sua preferência"),
+                           width = NULL, status = "info", solidHeader = TRUE, collapsible = TRUE,
                            sliderInput("data_slider1", "Período", min = min(dados_pais$date), max = max(dados_pais$date),
                                        value = c(min(dados_pais$date), max(dados_pais$date)))
                        )
@@ -211,6 +253,18 @@ ui <- dashboardPage(
       ),
       tabItem("ind",
               h2("Conteúdo da Página 5"),
+              # Adicione elementos específicos para a Página 5 aqui
+      ),
+      tabItem("sobre",
+              # h2("texto"),
+              fluidRow(
+                column(width = 12, 
+                       box(title = span(icon("circle-info"), " Informaçoes sobre o dashboard"), 
+                           width = NULL, status = "info", solidHeader = TRUE,
+                           htmlOutput("texto_sobre")
+                       ),
+                )
+              )
               # Adicione elementos específicos para a Página 5 aqui
       )
     )

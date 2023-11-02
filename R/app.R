@@ -2,6 +2,7 @@
 # install.packages("pacman")
 pacman::p_load(shiny, 
                shinydashboard, 
+               shinyWidgets, 
                shinythemes, 
                COVID19, 
                fpp3, 

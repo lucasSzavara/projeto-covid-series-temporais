@@ -1,13 +1,9 @@
-# Remover
-dados_estados <- read.csv('dados/pais/dados_pais.csv')
-# Remover
-
 grafico_comp_geo_default <- function(datas, series, titulo_grafico, eixo_x, eixo_y){
   p <- as.data.frame(cbind(serie=series)) %>%
     slice(-1) %>%
     mutate(serie_mutada = diff(series)) %>%
     ggplot(aes(x = datas[2:length(datas)], y = serie_mutada)) +
-    geom_line(color = "blue") +
+    geom_line(color = "#2596be") +
     labs(title = titulo_grafico, x = eixo_x, y = eixo_y) +
     theme_minimal() +
     scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
@@ -21,6 +17,7 @@ grafico_comp_geo_estados <- function(df12,variavel,escala,est1,est2){
   if (variavel == "confirmed") {
     p <- ggplot(df12, aes(x = date, y = confirmed/escala, color = administrative_area_level_2)) +
       geom_line() +
+      scale_color_manual(values = c("#2596be", "#be4d25")) +
       labs(title = paste("Casos confirmados em",est1,"e",est2),
            x = "Ano",
            y = "Confirmados")
@@ -33,6 +30,7 @@ grafico_comp_geo_estados <- function(df12,variavel,escala,est1,est2){
       
       p <- ggplot(df12, aes(x = date, y = deaths/escala, color = administrative_area_level_2)) +
         geom_line() +
+        scale_color_manual(values = c("#2596be", "#be4d25")) +
         labs(title = paste("Mortalidade em",est1,"e",est2),
              x = "Ano",
              y = "Número de mortos")
@@ -44,6 +42,7 @@ grafico_comp_geo_estados <- function(df12,variavel,escala,est1,est2){
       
       p <- ggplot(df12, aes(x = date, y = vaccines/escala, color = administrative_area_level_2)) +
         geom_line() +
+        scale_color_manual(values = c("#2596be", "#be4d25")) +
         labs(title = paste("Doses de vacinas administradas/10000 em",est1,"e",est2),
              x = "Ano",
              y = "Doses administradas/10000")
@@ -58,6 +57,7 @@ grafico_comp_geo_cidades <- function(df12,variavel,escala,cid1,est1,cid2,est2){
   if (variavel == "confirmed") {
     p <- ggplot(df12, aes(x = date, y = confirmed/escala, color = administrative_area_level_3)) +
       geom_line() +
+      scale_color_manual(values = c("#2596be", "#be4d25")) +
       labs(title = paste("Casos confirmados em",cid1,'-',est1,"e",cid2,'-',est2),
            x = "Ano",
            y = "Confirmados")
@@ -70,6 +70,7 @@ grafico_comp_geo_cidades <- function(df12,variavel,escala,cid1,est1,cid2,est2){
       
       p <- ggplot(df12, aes(x = date, y = deaths/escala, color = administrative_area_level_3)) +
         geom_line() +
+        scale_color_manual(values = c("#2596be", "#be4d25")) +
         labs(title = paste("Mortalidade em",cid1,'-',est1,"e",cid2,'-',est2),
              x = "Ano",
              y = "Número de mortos")
@@ -81,6 +82,7 @@ grafico_comp_geo_cidades <- function(df12,variavel,escala,cid1,est1,cid2,est2){
       
       p <- ggplot(df12, aes(x = date, y = vaccines/escala, color = administrative_area_level_3)) +
         geom_line() +
+        scale_color_manual(values = c("#2596be", "#be4d25")) +
         labs(title = paste("Doses de vacinas administradas/10000 em",cid1,'-',est1,"e",cid2,'-',est2),
              x = "Ano",
              y = "Doses administradas/10000")

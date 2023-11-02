@@ -9,7 +9,7 @@ grafico_series_estacionaria <- function(datas, series, titulo_grafico, eixo_x, e
     slice(-1) %>%
     mutate(serie_mutada = diff(series)) %>%
     ggplot(aes(x = datas[2:length(datas)], y = serie_mutada-diff(tendencias))) +
-    geom_line(color = "blue") +
+    geom_line(color = "#2596be") +
     labs(title = titulo_grafico, x = eixo_x, y = eixo_y) +
     theme_minimal() +
     scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
