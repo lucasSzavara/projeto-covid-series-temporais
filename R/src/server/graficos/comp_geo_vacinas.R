@@ -2,86 +2,157 @@
 dados_estados <- read.csv('dados/pais/dados_pais.csv')
 # Remover
 
-grafico_vac_comp_geo <- function(input,output){
-  est1 <- input$e_c1
-  cid1 <- input$cidade_filtro1
-  est2 <- input$e_c2
-  cid2 <- input$cidade_filtro2
+grafico_comp_geo_default <- function(datas, series, titulo_grafico, eixo_x, eixo_y){
+  p <- as.data.frame(cbind(serie=series)) %>%
+    slice(-1) %>%
+    mutate(serie_mutada = diff(series)) %>%
+    ggplot(aes(x = datas[2:length(datas)], y = serie_mutada)) +
+    geom_line(color = "blue") +
+    labs(title = titulo_grafico, x = eixo_x, y = eixo_y) +
+    theme_minimal() +
+    scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
   
+  fig <- ggplotly(p)
   
-  if((is.null(est1) && is.null(est2)) || (est1 == '' && est2 == '') || (is.null(est1) || is.null(est2)) || (est1 == '' || est2 == '')) {
-    
-    df_cidade <- covid19(country = c('Brazil'), level=1, verbose=F)  %>% filter(date >= input$data_slider1[1],
-                                                                                date <= input$data_slider1[2])
-    
-    p <- df_cidade %>%
-      slice(-1) %>%
-      mutate(vaccines = diff(df_cidade$vaccines)) %>%
-      ggplot(aes(x = date, y = vaccines)) +
-      geom_line(color = "blue") +
-      labs(title = paste("Doses de vacinas administradas no Brasil"), x = "Data", y = "Novos Confirmados Diários") +
-      theme_minimal() +
-      scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
+  return(fig)
+}
+
+grafico_comp_geo_estados <- function(df12,variavel,escala,est1,est2){
+  if (variavel == "confirmed") {
+    p <- ggplot(df12, aes(x = date, y = confirmed/escala, color = administrative_area_level_2)) +
+      geom_line() +
+      labs(title = paste("Casos confirmados em",est1,"e",est2),
+           x = "Ano",
+           y = "Confirmados")
     
     fig <- ggplotly(p)
     return(fig)
     
   } else {
-    if(!((is.null(est1) && is.null(est2)) || (est1 == '' && est2 == '')) && file.exists(paste('dados/dados', est1, cid1, '.csv')) && file.exists(paste('dados/dados', est2, cid2, '.csv'))) {
-      df_cidade1 <- read.csv(paste('dados/dados', est1, cid1, '.csv')) %>% filter(date >= input$data_slider1[1],
-                                                                                  date <= input$data_slider1[2])
-      df_cidade1$date <- as.Date(df_cidade1$date)
-      df_cidade1 <- corrige(df_cidade1,"vaccines")
-      df_cidade1 <- df_cidade1 %>%
-        slice(-1) %>%
-        mutate(vaccines = diff(df_cidade1$vaccines))
+    if (variavel == "deaths") {
       
-      df_cidade2 <- read.csv(paste('dados/dados', est2, cid2, '.csv')) %>% filter(date >= input$data_slider1[1],
-                                                                                  date <= input$data_slider1[2])
-      df_cidade2$date <- as.Date(df_cidade2$date)
-      df_cidade2 <- corrige(df_cidade2,"vaccines")
-      df_cidade2 <- df_cidade2 %>%
-        slice(-1) %>%
-        mutate(vaccines = diff(df_cidade2$vaccines))
-      
-      df_1e2 <- rbind(df_cidade1,df_cidade2)
-      
-      p <- ggplot(df_1e2, aes(x = date, y = vaccines, color = administrative_area_level_3)) +
+      p <- ggplot(df12, aes(x = date, y = deaths/escala, color = administrative_area_level_2)) +
         geom_line() +
-        labs(title = paste("Doses de vacinas administradas em", cid1,"e", cid2),
+        labs(title = paste("Mortalidade em",est1,"e",est2),
              x = "Ano",
-             y = "Confirmados")
+             y = "Número de mortos")
       
       fig <- ggplotly(p)
       return(fig)
-    }
-    else {
-      df_cidade1 <- dados_estados %>% filter(administrative_area_level_2 == est1) %>% filter(date >= input$data_slider1[1],
-                                                                                             date <= input$data_slider1[2])
-      df_cidade1$date <- as.Date(df_cidade1$date)
-      df_cidade1 <- corrige(df_cidade1,"vaccines")
-      df_cidade1 <- df_cidade1 %>%
-        slice(-1) %>%
-        mutate(vaccines = diff(df_cidade1$vaccines))
       
-      df_cidade2 <- dados_estados %>% filter(administrative_area_level_2 == est2) %>% filter(date >= input$data_slider1[1],
-                                                                                             date <= input$data_slider1[2])
-      df_cidade2$date <- as.Date(df_cidade2$date)
-      df_cidade2 <- corrige(df_cidade2,"vaccines")
-      df_cidade2 <- df_cidade2 %>%
-        slice(-1) %>%
-        mutate(vaccines = diff(df_cidade2$vaccines))
+    } else {
       
-      df_1e2 <- rbind(df_cidade1,df_cidade2)
-      
-      p <- ggplot(df_1e2, aes(x = date, y = vaccines, color = administrative_area_level_2)) +
+      p <- ggplot(df12, aes(x = date, y = vaccines/escala, color = administrative_area_level_2)) +
         geom_line() +
-        labs(title = paste("Doses de vacinas administradas em", est1,"e", est2),
+        labs(title = paste("Doses de vacinas administradas/10000 em",est1,"e",est2),
              x = "Ano",
-             y = "Confirmados")
+             y = "Doses administradas/10000")
       
       fig <- ggplotly(p)
       return(fig)
     }
   }
+}
+
+grafico_comp_geo_cidades <- function(df12,variavel,escala,cid1,est1,cid2,est2){
+  if (variavel == "confirmed") {
+    p <- ggplot(df12, aes(x = date, y = confirmed/escala, color = administrative_area_level_3)) +
+      geom_line() +
+      labs(title = paste("Casos confirmados em",cid1,'-',est1,"e",cid2,'-',est2),
+           x = "Ano",
+           y = "Confirmados")
+    
+    fig <- ggplotly(p)
+    return(fig)
+    
+  } else {
+    if (variavel == "deaths") {
+      
+      p <- ggplot(df12, aes(x = date, y = deaths/escala, color = administrative_area_level_3)) +
+        geom_line() +
+        labs(title = paste("Mortalidade em",cid1,'-',est1,"e",cid2,'-',est2),
+             x = "Ano",
+             y = "Número de mortos")
+      
+      fig <- ggplotly(p)
+      return(fig)
+      
+    } else {
+      
+      p <- ggplot(df12, aes(x = date, y = vaccines/escala, color = administrative_area_level_3)) +
+        geom_line() +
+        labs(title = paste("Doses de vacinas administradas/10000 em",cid1,'-',est1,"e",cid2,'-',est2),
+             x = "Ano",
+             y = "Doses administradas/10000")
+      
+      fig <- ggplotly(p)
+      return(fig)
+    }
+  }
+}
+
+render_grafico_series_comp_geo <- function(input, variavel, escala=1){
+  est1 <- input$e_c1
+  cid1 <- input$cidade_filtro1
+  est2 <- input$e_c2
+  cid2 <- input$cidade_filtro2
+  slider <- input$date_slider
+  
+  df1 <- carregar_dados(est1, cid1, slider, variavel)
+  df2 <- carregar_dados(est2, cid2, slider, variavel)
+  
+  if (!(variavel %in% names(df1)) || !(variavel %in% names(df2))) {
+    stop("A variável 'variavel' não é uma coluna válida nos dados.")
+  }
+  
+  if (variavel == "confirmed") {
+    eixo_y <- paste("Casos confirmados")
+    df1 <- df1 %>%
+      slice(-1) %>%
+      mutate(confirmed = diff(df1[[variavel]]))
+    
+    df2 <- df2 %>%
+      slice(-1) %>%
+      mutate(confirmed = diff(df2[[variavel]]))
+  } else {
+    if (variavel == "deaths") {
+      eixo_y <- paste("Número de mortos")
+      df1 <- df1 %>%
+        slice(-1) %>%
+        mutate(deaths = diff(df1[[variavel]]))
+      
+      df2 <- df2 %>%
+        slice(-1) %>%
+        mutate(deaths = diff(df2[[variavel]]))
+    } else {
+      eixo_y <- paste("Doses administradas/10000")
+      df1 <- df1 %>%
+        slice(-1) %>%
+        mutate(vaccines = diff(df1[[variavel]]))
+      
+      df2 <- df2 %>%
+        slice(-1) %>%
+        mutate(vaccines = diff(df2[[variavel]]))
+    }
+  }
+  
+  df_1e2 <- rbind(df1,df2)
+  
+  if((est1 == '' && est2 == '') || (est1 == '' || est2 == '') || (cid1 != '' && cid2 == '') || (cid1 == '' && cid2 != '')){
+    dados_estados$date <- as.Date(dados_estados$date)
+    df <- corrige(dados_estados, variavel)
+    
+    p <- grafico_comp_geo_default(df$date,df[[variavel]] / escala, "Doses administradas/10000","Data","Doses administradas")
+    
+    return(p)
+  } else if((est1 != '' && est2 != '') && (cid1 == '' && cid2 == '')){
+    p <- grafico_comp_geo_estados(df_1e2,variavel,escala,est1,est2)
+    
+    return(p)
+  } else {
+    p <- grafico_comp_geo_cidades(df_1e2,variavel,escala,cid1,est1,cid2,est2)
+    
+    return(p)
+  } 
+  
 }

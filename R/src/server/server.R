@@ -38,7 +38,7 @@ server <- function(input, output, session) {
   })
   
   output$grafico_saz <- renderPlotly({
-    grafico_sazonalidade_casos(input,output)
+    render_grafico_sazonalidade(input, "confirmed")
   })
   
   output$grafico_series_estac <- renderPlotly({
@@ -57,7 +57,7 @@ server <- function(input, output, session) {
   
   
   output$grafico_saz1 <- renderPlotly({
-    grafico_sazonalidade_mortes(input,output)
+    render_grafico_sazonalidade(input, "deaths")
   })
   
   output$grafico_series_estac1 <- renderPlotly({
@@ -75,7 +75,7 @@ server <- function(input, output, session) {
   })
   
   output$grafico_saz2 <- renderPlotly({
-    grafico_sazonalidade_vacinas(input,output)
+    render_grafico_sazonalidade(input, "vaccines", 10000)
   })
   
   output$grafico_series_estac2 <- renderPlotly({
@@ -116,7 +116,7 @@ server <- function(input, output, session) {
   
   
   output$grafico_series_1e2 <- renderPlotly({
-    grafico_vac_comp_geo(input,output)
+    render_grafico_series_comp_geo(input,"vaccines",10000)
   })
   
   #================================================================== END: DIFERENÇAS GEOGRÁFICAS

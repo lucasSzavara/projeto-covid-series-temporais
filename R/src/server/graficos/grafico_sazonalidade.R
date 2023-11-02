@@ -45,101 +45,42 @@ grafico_sazonal <- function(datas, serie, titulo_grafico, eixo_x, eixo_y, period
 
 #-----------------------------------------------------------------------------------------------
 
-# Casos confirmados
-grafico_sazonalidade_casos <- function(input,output){
+render_grafico_sazonalidade <- function(input, variavel, escala=1){
   est <- input$e_c
   cid <- input$cidade_filtro
-  # print(est)
-  # print(cid)
-  if(is.null(est) || est == '') {
-    df_cidade <- covid19(country = c('Brazil'), level=1, verbose=F)  %>% filter(date >= input$date_slider[1],
-                                                                                date <= input$date_slider[2])
+  slider <- input$date_slider
+  
+  df <- carregar_dados(est, cid, slider, variavel)
+  
+  # Verifica se a variável 'variavel' é uma coluna válida nos dados
+  if (!(variavel %in% names(df))) {
+    stop("A variável 'variavel' não é uma coluna válida nos dados.")
+  }
+  
+  titulo <- titulo_saz(variavel, est, cid)
+  
+  if (variavel == "confirmed") {
+    eixo_y <- paste("Casos confirmados")
+    df <- df %>%
+      slice(-1) %>%
+      mutate(confirmed = diff(df[[variavel]]))
   } else {
-    if(!(is.null(cid) || cid == '') && file.exists(paste('dados/dados', est, cid, '.csv'))) {
-      df_cidade <- read.csv(paste('dados/dados', est, cid, '.csv')) %>% filter(date >= input$date_slider[1],
-                                                                               date <= input$date_slider[2])
-    }
-    else {
-      df_cidade <- dados_estados %>% filter(administrative_area_level_2 == est) %>% filter(date >= input$date_slider[1],
-                                                                                           date <= input$date_slider[2])
+    if (variavel == "deaths") {
+      eixo_y <- paste("Número de mortos")
+      df <- df %>%
+        slice(-1) %>%
+        mutate(deaths = diff(df[[variavel]]))
+    } else {
+      eixo_y <- paste("Doses administradas/10000")
+      df <- df %>%
+        slice(-1) %>%
+        mutate(vaccines = diff(df[[variavel]]))
     }
   }
-  df_cidade$date <- as.Date(df_cidade$date)
-  df_cidade <- corrige(df_cidade,"confirmed")
   
-  df_cidade <- df_cidade %>%
-    slice(-1) %>%
-    mutate(confirmed = diff(df_cidade$confirmed))
-  
-  p <- grafico_sazonal(df_cidade$date,df_cidade$confirmed,"Casos confirmados em anos sucessivos","Data","Novos confirmados","year")
+  p <- grafico_sazonal(df$date,df[[variavel]] / escala, titulo,"Data",eixo_y,"year")
   
   return(p)
-}
-
-#-----------------------------------------------------------------------------------------------
-
-# Mortes
-grafico_sazonalidade_mortes <- function(input,output){
-  est <- input$e_c
-  cid <- input$cidade_filtro
-  # print(est)
-  # print(cid)
-  if(is.null(est) || est == '') {
-    df_cidade <- covid19(country = c('Brazil'), level=1, verbose=F)  %>% filter(date >= input$date_slider[1],
-                                                                                date <= input$date_slider[2])
-  } else {
-    if(!(is.null(cid) || cid == '') && file.exists(paste('dados/dados', est, cid, '.csv'))) {
-      df_cidade <- read.csv(paste('dados/dados', est, cid, '.csv')) %>% filter(date >= input$date_slider[1],
-                                                                               date <= input$date_slider[2])
-    }
-    else {
-      df_cidade <- dados_estados %>% filter(administrative_area_level_2 == est) %>% filter(date >= input$date_slider[1],
-                                                                                           date <= input$date_slider[2])
-    }
-  }
-  df_cidade$date <- as.Date(df_cidade$date)
-  df_cidade <- corrige(df_cidade,"deaths")
   
-  df_cidade <- df_cidade %>%
-    slice(-1) %>%
-    mutate(deaths = diff(df_cidade$deaths))
-  
-  p <- grafico_sazonal(df_cidade$date,df_cidade$deaths,"Número de mortos em anos sucessivos","Data","Mortes","year")
-  
-  return(p)
-}
-
-#-----------------------------------------------------------------------------------------------
-
-# Vacinas
-grafico_sazonalidade_vacinas <- function(input,output){
-  est <- input$e_c
-  cid <- input$cidade_filtro
-  if(is.null(est) || est == '') {
-    df_cidade <- covid19(country = c('Brazil'), level=1, verbose=F)  %>% filter(date >= input$date_slider[1],
-                                                                                date <= input$date_slider[2])
-  } else {
-    if(!(is.null(cid) || cid == '') && file.exists(paste('dados/dados', est, cid, '.csv'))) {
-      df_cidade <- read.csv(paste('dados/dados', est, cid, '.csv')) %>% filter(date >= input$date_slider[1],
-                                                                               date <= input$date_slider[2])
-    }
-    else {
-      df_cidade <- dados_estados %>% filter(administrative_area_level_2 == est) %>% filter(date >= input$date_slider[1],
-                                                                                           date <= input$date_slider[2])
-    }
-  }
-  df_cidade$date <- as.Date(df_cidade$date)
-  df_cidade <- corrige(df_cidade,"vaccines")
-  # print(df_cidade$vaccines)
-  # df_cidade <- df_cidade %>%
-  #   mutate(vaccines = diff(df_cidade$vaccines))
-  # print(df_cidade$vaccines)
-  df_cidade <- df_cidade %>%
-    slice(-1) %>%
-    mutate(vaccines = diff(df_cidade$vaccines))
-  
-  p <- grafico_sazonal(df_cidade$date,df_cidade$vaccines/10000,"Doses de vacinas administradas por 10.000 habitantes em anos sucessivos","Data","Doses de vacinas","year")
-  
-  return(p)
 }
 
