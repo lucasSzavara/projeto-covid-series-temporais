@@ -98,7 +98,7 @@ render_grafico_series_comp_geo <- function(input, variavel, escala=1){
   cid1 <- input$cidade_filtro1
   est2 <- input$e_c2
   cid2 <- input$cidade_filtro2
-  slider <- input$date_slider
+  slider <- input$date_slider1
   
   df1 <- carregar_dados(est1, cid1, slider, variavel)
   df2 <- carregar_dados(est2, cid2, slider, variavel)

@@ -226,7 +226,7 @@ ui <- dashboardPage(
                 column(width = 4,
                        box(title = span(icon("calendar"), " Selecione o período de sua preferência"),
                            width = NULL, status = "info", solidHeader = TRUE, collapsible = TRUE,
-                           sliderInput("data_slider1", "Período", min = min(dados_pais$date), max = max(dados_pais$date),
+                           sliderInput("date_slider1", "Período", min = min(dados_pais$date), max = max(dados_pais$date),
                                        value = c(min(dados_pais$date), max(dados_pais$date)))
                        )
                        
