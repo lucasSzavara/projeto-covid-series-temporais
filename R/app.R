@@ -10,17 +10,18 @@ pacman::p_load(shiny,
                forecast, 
                stringr, 
                drc,
-               ggpubr)
+               ggpubr,
+               padr)
 
 #------------------------------------------------------------
 
 # Definir o UI
-source("./src/ui/ui.R")
+source("R/src/ui/ui.R")
 
 #------------------------------------------------------------
 
 # Definir o servidor
-source("./src/server/server.R")
+source("R/src/server/server.R")
 
 #------------------------------------------------------------
 

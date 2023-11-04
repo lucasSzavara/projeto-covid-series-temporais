@@ -126,7 +126,7 @@ ui <- dashboardPage(
                              
                              column(width = 6,
                                     box(width = NULL, solidHeader = TRUE,
-                                        plotOutput("grafico_ACF", height = 500)
+                                        plotlyOutput("grafico_ACF", height = 500)
                                     )
                              )
                            )
@@ -158,7 +158,7 @@ ui <- dashboardPage(
                              
                              column(width = 6,
                                     box(width = NULL, solidHeader = TRUE,
-                                        plotOutput("grafico_ACF1", height = 500)
+                                        plotlyOutput("grafico_ACF1", height = 500)
                                     )
                              )
                            )
@@ -190,7 +190,7 @@ ui <- dashboardPage(
                              
                              column(width = 6,
                                     box(width = NULL, solidHeader = TRUE,
-                                        plotOutput("grafico_ACF2", height = 500)
+                                        plotlyOutput("grafico_ACF2", height = 500)
                                     )
                              )
                            )

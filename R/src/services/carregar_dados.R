@@ -46,6 +46,7 @@ carregar_dados <- function(est, cid, date_slider, variavel) {
     }
   }
   df$date <- as.Date(df$date)
+  df <- pad(df)
   df <- corrige(df, variavel)
   return(df)
 }

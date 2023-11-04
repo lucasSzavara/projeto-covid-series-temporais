@@ -5,9 +5,9 @@ pacman::p_load(shiny,
 #------------------------------------------------------------
 
 # Carregar Funções
-source("./src/services/index.R")
-source("./src/server/graficos/index.R")
-source("./tendencia.R")
+source("R/src/services/index.R")
+source("R/src/server/graficos/index.R")
+source("R/tendencia.R")
 
 #------------------------------------------------------------
 
@@ -45,7 +45,7 @@ server <- function(input, output, session) {
     render_grafico_series_estacionaria(input, "confirmed")
   })
   
-  output$grafico_ACF <- renderPlot({
+  output$grafico_ACF <- renderPlotly({
     render_grafico_ACF(input, "confirmed")
   })
   
@@ -64,7 +64,7 @@ server <- function(input, output, session) {
     render_grafico_series_estacionaria(input, "deaths")
   })
   
-  output$grafico_ACF1 <- renderPlot({
+  output$grafico_ACF1 <- renderPlotly({
     render_grafico_ACF(input, "deaths")
   })
   
@@ -82,7 +82,7 @@ server <- function(input, output, session) {
     render_grafico_series_estacionaria(input, "vaccines", 10000)
   })
   
-  output$grafico_ACF2 <- renderPlot({
+  output$grafico_ACF2 <- renderPlotly({
     render_grafico_ACF(input, "vaccines", 10000)
   })
   

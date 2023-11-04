@@ -36,7 +36,9 @@ grafico_ACF <- function(df, variavel, escala, titulo_grafico, eixo_x, eixo_y) {
     coord_cartesian(ylim=c(-1,1)) +
     theme_minimal()
   
-  return(G)
+  fig <- ggplotly(G)
+  
+  return(fig)
 }
 
 # grafico_ACF(dados_pais, "confirmed", 10000) # testar a funçao
