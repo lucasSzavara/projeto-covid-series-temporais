@@ -53,7 +53,7 @@ render_grafico_ACF <- function(input, variavel, escala = 1, eixo_x = "Defasagem"
   slider <- input$date_slider
   
   # Carregar dados
-  df <- carregar_dados(est, cid, slider, variavel)
+  df <- carregar_dados(est, cid, slider, variavel, TRUE)
   
   # Verificar se a variável 'variavel' é uma coluna válida nos dados
   if (!(variavel %in% names(df))) {

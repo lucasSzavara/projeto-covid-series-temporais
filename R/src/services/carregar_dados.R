@@ -26,7 +26,7 @@ corrige <- function(df, variavel){
 #-----------------------------------------------------------------------------------------------
 
 # Carregar dados especificados(cidade, estado ou pais)
-carregar_dados <- function(est, cid, date_slider, variavel) {
+carregar_dados <- function(est, cid, date_slider, variavel, pad_ = FALSE) {
   
   if (is.null(est) || est == '') {
     df <- dados_pais %>%
@@ -46,7 +46,11 @@ carregar_dados <- function(est, cid, date_slider, variavel) {
     }
   }
   df$date <- as.Date(df$date)
-  df <- pad(df)
+  
+  if (pad_) {
+    df <- pad(df)
+  }
+  
   df <- corrige(df, variavel)
   return(df)
 }

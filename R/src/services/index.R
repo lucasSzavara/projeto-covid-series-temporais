@@ -1,2 +1,2 @@
-source("R/src/services/carregar_dados.R")
-source("R/src/services/titulos.R")
+source("./src/services/carregar_dados.R")
+source("./src/services/titulos.R")

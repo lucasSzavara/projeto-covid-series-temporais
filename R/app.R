@@ -16,12 +16,12 @@ pacman::p_load(shiny,
 #------------------------------------------------------------
 
 # Definir o UI
-source("R/src/ui/ui.R")
+source("./src/ui/ui.R")
 
 #------------------------------------------------------------
 
 # Definir o servidor
-source("R/src/server/server.R")
+source("./src/server/server.R")
 
 #------------------------------------------------------------
 
