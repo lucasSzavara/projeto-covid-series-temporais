@@ -115,7 +115,7 @@ ui <- dashboardPage(
               
               fluidRow(
                 column(width = 12,
-                       box(title = span(icon("chart-line"), " Gráfico de series com tendencia estimada"),
+                       box(title = span(icon("chart-line"), " Gráfico de séries com tendencia estimada"),
                            width = NULL, status = "info", solidHeader = TRUE,
                            plotlyOutput("grafico_series", height = 500),
                            collapsible = TRUE, collapsed = FALSE
@@ -125,7 +125,7 @@ ui <- dashboardPage(
               
               fluidRow(
                 column(width = 12,
-                       box(title = span(icon("chart-line"), " Componentes da serie"),
+                       box(title = span(icon("chart-line"), " Componentes da série"),
                            width = NULL, status = "info", solidHeader = TRUE,
                            fluidRow(column(width = 6,
                                            plotlyOutput("grafico_saz", height = 500)),
@@ -175,29 +175,25 @@ ui <- dashboardPage(
                            collapsible = TRUE
                        )
                 ),
-
+                
                 column(width = 4,
                        box(title = span(icon("calendar"), " Selecione o período de sua preferência"),
                            width = NULL, status = "info", solidHeader = TRUE, collapsible = TRUE,
                            sliderInput("date_slider1", "Período", min = min(dados_pais$date), max = max(dados_pais$date),
                                        value = c(min(dados_pais$date), max(dados_pais$date)))
                        )
-                       
-                ),
-                
-                fluidRow(
-                  column(width = 12, 
-                         h2(" 1) Doses de Vacinas administradas em duas áreas administrativas")
-                  )
-                ),
-                
-                fluidRow(column(width = 12, 
-                                box(width = NULL, solidHeader = TRUE, 
-                                    plotlyOutput("grafico_series_1e2", height = 500))
                 )
+              ),
+              
+              fluidRow(
+                column(width = 12, 
+                       box(title = span(icon("chart-line"), " Gráfico de séries entre duas regiões"),
+                           width = NULL, status = "info", solidHeader = TRUE,
+                           plotlyOutput("grafico_series_1e2", height = 500),
+                           collapsible = TRUE, collapsed = FALSE
+                       )
                 )
               )
-              # Adicione elementos específicos para a Página 3 aqui
       ),
       
       
@@ -234,12 +230,13 @@ ui <- dashboardPage(
               ),
               
               fluidRow(
-                column(width = 12,
-                       box(width = NULL, solidHeader = TRUE,
-                           plotlyOutput("grafico_series_med_pol", height = 500)
+                column(width = 12, 
+                       box(title = span(icon("chart-line"), " Gráfico de séries para Medidas Políticas"),
+                           width = NULL, status = "info", solidHeader = TRUE,
+                           plotlyOutput("grafico_series_med_pol", height = 500),
+                           collapsible = TRUE, collapsed = FALSE
                        )
                 )
-                
               )
               
       ),
