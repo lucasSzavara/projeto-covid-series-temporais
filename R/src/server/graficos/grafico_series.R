@@ -23,10 +23,11 @@ grafico_series <- function(datas, series, titulo_grafico, eixo_x, eixo_y) {
 #-----------------------------------------------------------------------------------------------
 
 # Funçao que renderiza o grafico de series para a variavel especificada
-render_grafico_series <- function(input, variavel, escala=1) {
+render_grafico_series <- function(input, escala=1) {
   est <- input$e_c
   cid <- input$cidade_filtro
   slider <- input$date_slider
+  variavel <- input$var
 
   df <- carregar_dados(est, cid, slider, variavel)
 

@@ -27,7 +27,7 @@ render_grafico_series_mp <- function(input) {
   cid <- input$cidade_filtro_mp
   slider <- input$date_slider_mp
   policy <- input$med_pol
-  variavel <- input$var
+  variavel <- input$var2
   
   df <- carregar_dados(est, cid, slider, variavel)
   

@@ -88,6 +88,14 @@ ui <- dashboardPage(
                        )
                 ),
                 
+                column(width = 4,
+                       box(title = span(icon("x"), " Selecione a variável de sua preferência"),
+                           width = NULL, status = "info", solidHeader = TRUE,
+                           selectInput("var", "Variável", Vars, selectize = TRUE),
+                           collapsible = TRUE
+                       )
+                ),
+                
                 column(
                   width = 4,
                   box(title = span(icon("calendar"), " Selecione o período de sua preferência"),
@@ -100,112 +108,31 @@ ui <- dashboardPage(
                 
               ),
               
-              tabsetPanel(
-                id = "tabs",
-                tabPanel("Confirmados", 
-                         conditionalPanel(
-                           condition = "input.tabs == 'Confirmados'",
-                           fluidRow(
-                             column(width = 6,
-                                    box(width = NULL, solidHeader = TRUE,
-                                        plotlyOutput("grafico_series", height = 500)
-                                    )
-                             ),
-                             
-                             column(width = 6,
-                                    box(width = NULL, solidHeader = TRUE,
-                                        plotlyOutput("grafico_saz", height = 500)
-                                    )
-                             )
-                           ),
-                           
-                           fluidRow(
-                             column(width = 6,
-                                    box(width = NULL, solidHeader = TRUE,
-                                        plotlyOutput("grafico_series_estac", height = 500)
-                                    )
-                             ),
-                             
-                             column(width = 6,
-                                    box(width = NULL, solidHeader = TRUE,
-                                        plotlyOutput("grafico_estac", height = 500)
-                                    )
-                             )
-                           ),
-                           fluidRow(
-                             column(width = 6,
-                                    box(width = NULL, solidHeader = TRUE,
-                                        plotlyOutput("grafico_ACF", height = 500)
-                                    )
-                             )
-                           )
-                         )
-                ),
-                tabPanel("Mortalidade", 
-                         conditionalPanel(
-                           condition = "input.tabs == 'Mortalidade'",
-                           fluidRow(
-                             column(width = 6,
-                                    box(width = NULL, solidHeader = TRUE,
-                                        plotlyOutput("grafico_series1", height = 500)
-                                    )
-                             ),
-                             
-                             column(width = 6,
-                                    box(width = NULL, solidHeader = TRUE,
-                                        plotlyOutput("grafico_saz1", height = 500)
-                                    )
-                             )
-                           ),
-                           
-                           fluidRow(
-                             column(width = 6,
-                                    box(width = NULL, solidHeader = TRUE,
-                                        plotlyOutput("grafico_series_estac1", height = 500)
-                                    )
-                             ),
-                             
-                             column(width = 6,
-                                    box(width = NULL, solidHeader = TRUE,
-                                        plotlyOutput("grafico_ACF1", height = 500)
-                                    )
-                             )
-                           )
-                         )
-                ),
-                tabPanel("Vacinas", 
-                         conditionalPanel(
-                           condition = "input.tabs == 'Vacinas'",
-                           fluidRow(
-                             column(width = 6,
-                                    box(width = NULL, solidHeader = TRUE,
-                                        plotlyOutput("grafico_series2", height = 500)
-                                    )
-                             ),
-                             
-                             column(width = 6,
-                                    box(width = NULL, solidHeader = TRUE,
-                                        plotlyOutput("grafico_saz2", height = 500)
-                                    )
-                             )
-                           ),
-                           
-                           fluidRow(
-                             column(width = 6,
-                                    box(width = NULL, solidHeader = TRUE,
-                                        plotlyOutput("grafico_series_estac2", height = 500)
-                                    )
-                             ),
-                             
-                             column(width = 6,
-                                    box(width = NULL, solidHeader = TRUE,
-                                        plotlyOutput("grafico_ACF2", height = 500)
-                                    )
-                             )
-                           )
-                         )
+              fluidRow(
+                column(width = 12,
+                       box(title = span(icon("chart-line"), " Gráfico de series com tendencia estimada"),
+                           width = NULL, status = "info", solidHeader = TRUE,
+                           plotlyOutput("grafico_series", height = 500),
+                           collapsible = TRUE, collapsed = FALSE
+                       )
                 )
-                # Adicione mais abas conforme necessário, sem vírgula após a última
+              ),
+              
+              fluidRow(
+                column(width = 12,
+                       box(title = span(icon("chart-line"), " Componentes da serie"),
+                           width = NULL, status = "info", solidHeader = TRUE,
+                           fluidRow(column(width = 6,
+                                           plotlyOutput("grafico_saz", height = 500)),
+                             column(width = 6,
+                                    plotlyOutput("grafico_series_estac", height = 500))),
+                           fluidRow(column(width = 6,
+                                           plotlyOutput("grafico_estac", height = 500)),
+                                    column(width = 6,
+                                           plotlyOutput("grafico_ACF", height = 500))),
+                           collapsible = TRUE, collapsed = TRUE
+                       )
+                )
               )
               
               
@@ -269,7 +196,7 @@ ui <- dashboardPage(
                 column(width = 4,
                        box(title = span(icon("landmark"), " Selecione a variável e a medida política"),
                            width = NULL, status = "info", solidHeader = TRUE,
-                           selectInput("var", "Variável", Vars, selectize = TRUE),
+                           selectInput("var2", "Variável", Vars, selectize = TRUE),
                            selectInput("med_pol", "Medidas Políticas", m_p, selectize = TRUE),
                            collapsible = TRUE
                        )

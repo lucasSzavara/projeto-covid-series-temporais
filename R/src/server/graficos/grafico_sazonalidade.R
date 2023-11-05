@@ -42,10 +42,11 @@ grafico_sazonal <- function(datas, serie, titulo_grafico, eixo_x, eixo_y, period
 
 #-----------------------------------------------------------------------------------------------
 
-render_grafico_sazonalidade <- function(input, variavel, escala=1){
+render_grafico_sazonalidade <- function(input, escala=1){
   est <- input$e_c
   cid <- input$cidade_filtro
   slider <- input$date_slider
+  variavel <- input$var
   
   df <- carregar_dados(est, cid, slider, variavel)
   

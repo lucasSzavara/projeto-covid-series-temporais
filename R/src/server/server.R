@@ -35,60 +35,23 @@ server <- function(input, output, session) {
   #------------------------------------------------------------
   
   output$grafico_series <- renderPlotly({
-    render_grafico_series(input, "confirmed")
+    render_grafico_series(input)
   })
   
   output$grafico_saz <- renderPlotly({
-    render_grafico_sazonalidade(input, "confirmed")
+    render_grafico_sazonalidade(input)
   })
   
   output$grafico_series_estac <- renderPlotly({
-    render_grafico_series_estacionaria(input, "confirmed", saz=T)
+    render_grafico_series_estacionaria(input, saz=T)
   })
   
   output$grafico_estac <- renderPlotly({
-    render_grafico_series_estacionaria(input, "confirmed")
+    render_grafico_series_estacionaria(input)
   })
   
   output$grafico_ACF <- renderPlotly({
-    render_grafico_ACF(input, "confirmed")
-  })
-  
-  #------------------------------------------------------------
-  
-  output$grafico_series1 <- renderPlotly({
-    render_grafico_series(input, "deaths")
-  })
-  
-  
-  output$grafico_saz1 <- renderPlotly({
-    render_grafico_sazonalidade(input, "deaths")
-  })
-  
-  output$grafico_series_estac1 <- renderPlotly({
-    render_grafico_series_estacionaria(input, "deaths")
-  })
-  
-  output$grafico_ACF1 <- renderPlotly({
-    render_grafico_ACF(input, "deaths")
-  })
-  
-  #------------------------------------------------------------
-  
-  output$grafico_series2 <- renderPlotly({
-    render_grafico_series(input, "vaccines", 10000)
-  })
-  
-  output$grafico_saz2 <- renderPlotly({
-    render_grafico_sazonalidade(input, "vaccines", 10000)
-  })
-  
-  output$grafico_series_estac2 <- renderPlotly({
-    render_grafico_series_estacionaria(input, "vaccines", 10000)
-  })
-  
-  output$grafico_ACF2 <- renderPlotly({
-    render_grafico_ACF(input, "vaccines", 10000)
+    render_grafico_ACF(input)
   })
   
   #================================================================== END: EVOLUÇÃO

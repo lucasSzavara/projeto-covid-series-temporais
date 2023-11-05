@@ -36,10 +36,11 @@ grafico_series_estacionaria <- function(datas, series, titulo_grafico, eixo_x, e
 #-----------------------------------------------------------------------------------------------
 
 # Funçao que renderiza o grafico de series estacionaria para a variavel especificada
-render_grafico_series_estacionaria <- function(input, variavel, saz=F, escala=1) {
+render_grafico_series_estacionaria <- function(input, saz=F, escala=1) {
   est <- input$e_c
   cid <- input$cidade_filtro
   slider <- input$date_slider
+  variavel <- input$var
 
   df <- carregar_dados(est, cid, slider, variavel)
 

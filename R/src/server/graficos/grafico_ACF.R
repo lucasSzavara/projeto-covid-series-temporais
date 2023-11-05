@@ -48,11 +48,12 @@ grafico_ACF <- function(df, variavel, escala, titulo_grafico, eixo_x, eixo_y) {
 #-----------------------------------------------------------------------------------------------
 
 # Função que renderiza o gráfico de autocorrelação para a variável especificada
-render_grafico_ACF <- function(input, variavel, escala = 1, eixo_x = "Defasagem", eixo_y = "Autocorrelação") {
+render_grafico_ACF <- function(input, escala = 1, eixo_x = "Defasagem", eixo_y = "Autocorrelação") {
   # Extrair informações do input
   est <- input$e_c
   cid <- input$cidade_filtro
   slider <- input$date_slider
+  variavel <- input$var
   
   # Carregar dados
   df <- carregar_dados(est, cid, slider, variavel, TRUE)
