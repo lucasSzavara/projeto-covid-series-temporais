@@ -36,7 +36,7 @@ render_grafico_series <- function(input, escala=1) {
     stop("A variável 'variavel' não é uma coluna válida nos dados.")
   }
   
-  titulo <- titulo_series(variavel, est, cid)
+  titulo <- titulo_series_tendencia(variavel, est, cid)
 
   p <- grafico_series(df$date, df[[variavel]] / escala, titulo, "Data", "Novos Confirmados Diários")
   

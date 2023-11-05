@@ -27,7 +27,7 @@ grafico_series_estacionaria <- function(datas, series, titulo_grafico, eixo_x, e
       scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
   }
   
-  fig <- ggplotly(p)
+  fig <- ggplotly(p + theme(plot.title=element_text(size=10)))
   
   return(fig)
   
@@ -49,7 +49,13 @@ render_grafico_series_estacionaria <- function(input, saz=F, escala=1) {
     stop("A variável 'variavel' não é uma coluna válida nos dados.")
   }
   
-  titulo <- titulo_series(variavel, est, cid)
+  if (saz) {
+    titulo <- titulo_series_res(variavel, est, cid) 
+  }
+  
+  else {
+    titulo <- titulo_series_esta(variavel, est, cid) 
+  }
 
   p <- grafico_series_estacionaria(df$date, df[[variavel]] / escala, titulo, "Data", "Novos Confirmados Diários", saz=saz)
 

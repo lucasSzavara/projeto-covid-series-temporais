@@ -4,7 +4,7 @@
 
 titulo_series <- function(variavel, est, cid) {
   titulo <- ""
-
+  
   if (variavel == "confirmed") {
     aux <- paste("Casos confirmados")
   } else {
@@ -30,6 +30,33 @@ titulo_series <- function(variavel, est, cid) {
 
 #-----------------------------------------------------------------------------------------------
 
+titulo_series_tendencia <- function(variavel, est, cid) {
+  titulo <- ""
+  
+  if (variavel == "confirmed") {
+    aux <- paste("Casos confirmados")
+  } else {
+    if (variavel == "deaths") {
+      aux <- paste("Número de mortos")
+    } else {
+      aux <- paste("Doses administradas/10000")
+    }
+  }
+  
+  if (is.null(est) || est == '') {
+    titulo <- paste(aux, "no Brasil e sua tendência")
+  } else {
+    if (!(is.null(cid) || cid == '')) {
+      titulo <- paste(aux, "em", est, "-", cid, "e sua tendência")
+    } else {
+      titulo <- paste(aux, "em", est, "e sua tendência")
+    }
+  }
+  
+  return(titulo)
+}
+
+#-----------------------------------------------------------------------------------------------
 
 titulo_saz <- function(variavel, est, cid) {
   titulo <- ""
@@ -57,6 +84,89 @@ titulo_saz <- function(variavel, est, cid) {
   return(titulo)
 }
 
+#-----------------------------------------------------------------------------------------------
+
+titulo_series_res <- function(variavel, est, cid) {
+  titulo <- ""
+  
+  if (variavel == "confirmed") {
+    aux <- paste("Residuo da tendência para casos confirmados")
+  } else {
+    if (variavel == "deaths") {
+      aux <- paste("Residuo da tendência para número de mortos")
+    } else {
+      aux <- paste("Residuo da tendência para doses administradas/10000")
+    }
+  }
+  
+  if (is.null(est) || est == '') {
+    titulo <- paste(aux, "no Brasil e sua sazonalidade")
+  } else {
+    if (!(is.null(cid) || cid == '')) {
+      titulo <- paste(aux, "em", est, "-", cid, "e sua sazonalidade")
+    } else {
+      titulo <- paste(aux, "em", est, "e sua sazonalidade")
+    }
+  }
+  
+  return(titulo)
+}
+
+#-----------------------------------------------------------------------------------------------
+
+titulo_series_esta <- function(variavel, est, cid) {
+  titulo <- ""
+  
+  if (variavel == "confirmed") {
+    aux <- paste("Gráfico estacionario de casos confirmados")
+  } else {
+    if (variavel == "deaths") {
+      aux <- paste("Gráfico estacionario do número de mortos")
+    } else {
+      aux <- paste("Gráfico estacionario de doses administradas/10000")
+    }
+  }
+  
+  if (is.null(est) || est == '') {
+    titulo <- paste(aux, "no Brasil")
+  } else {
+    if (!(is.null(cid) || cid == '')) {
+      titulo <- paste(aux, "em", est, "-", cid)
+    } else {
+      titulo <- paste(aux, "em", est)
+    }
+  }
+  
+  return(titulo)
+}
+
+#-----------------------------------------------------------------------------------------------
+
+titulo_series_acf <- function(variavel, est, cid) {
+  titulo <- ""
+  
+  if (variavel == "confirmed") {
+    aux <- paste("Gráfico da autocorrelação de Casos confirmados")
+  } else {
+    if (variavel == "deaths") {
+      aux <- paste("Gráfico da autocorrelação do Número de mortos")
+    } else {
+      aux <- paste("Gráfico da autocorrelação de Doses administradas/10000")
+    }
+  }
+  
+  if (is.null(est) || est == '') {
+    titulo <- paste(aux, "no Brasil")
+  } else {
+    if (!(is.null(cid) || cid == '')) {
+      titulo <- paste(aux, "em", est, "-", cid)
+    } else {
+      titulo <- paste(aux, "em", est)
+    }
+  }
+  
+  return(titulo)
+}
 
 
 

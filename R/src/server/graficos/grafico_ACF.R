@@ -38,7 +38,8 @@ grafico_ACF <- function(df, variavel, escala, titulo_grafico, eixo_x, eixo_y) {
     coord_cartesian(ylim=c(-1,1)) +
     theme_minimal()
   
-  fig <- ggplotly(G)
+  fig <- ggplotly(G + theme(plot.title=element_text(size=10))
+)
   
   return(fig)
 }
@@ -64,7 +65,7 @@ render_grafico_ACF <- function(input, escala = 1, eixo_x = "Defasagem", eixo_y =
   }
   
   # Calcular o título do gráfico
-  titulo <- titulo_series(variavel, est, cid)
+  titulo <- titulo_series_acf(variavel, est, cid)
   
   # Gerar o gráfico
   p <- grafico_ACF(df, variavel, escala, titulo, eixo_x, eixo_y)
