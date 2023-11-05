@@ -2,7 +2,7 @@ library(fpp3)
 library(dplyr)
 
 
-modela_sazonalidade <- function(serie, datas) {
+estima_sazonalidade <- function(serie, datas) {
   # Pega uma série sem tendência, e modela sua sazonalidade. Para os dados 
   # de covid, temos um melhor resultado ao ajustar a série diferenciada dos dados
   # menos a tendencia ajustada (diff(serie-tendencia))
@@ -10,27 +10,16 @@ modela_sazonalidade <- function(serie, datas) {
   df <- data.frame(serie, data=datas)
   modelo_sazonalidade <- model(
     df %>% as_tsibble(),
-    TSLM(sem_tendencia ~ season())
+    TSLM(serie ~ season())
   ) 
   sazonalidade_ajustada <- modelo_sazonalidade %>% 
     fitted() %>% 
     group_by(.model) %>% 
-    mutate(value = data$sem_tendencia) %>% 
+    mutate(value = df$serie) %>% 
     mutate(res = value-.fitted)
   return(sazonalidade_ajustada$.fitted)
 }
-# }
-# # `Yt = St (h=1) + Rt` = TSLM(sem_tendencia ~ season()),
-# 
-# modelo_sazonalidade <- model(
-#     data %>% as_tsibble(),
-#     TSLM(sem_tendencia ~ season())
-#   ) 
-# sazonalidade_ajustada <- modelo_sazonalidade %>% 
-#   fitted() %>% 
-#   group_by(.model) %>% 
-#   mutate(value = data$sem_tendencia) %>% 
-#   mutate(res = value-.fitted)
+
 # 
 # G0 = 
 #   sazonalidade_ajustada %>% 

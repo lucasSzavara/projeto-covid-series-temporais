@@ -8,6 +8,7 @@ pacman::p_load(shiny,
 source("./src/services/index.R")
 source("./src/server/graficos/index.R")
 source("./tendencia.R")
+source('./sazonalidade.R')
 
 #------------------------------------------------------------
 
@@ -42,6 +43,10 @@ server <- function(input, output, session) {
   })
   
   output$grafico_series_estac <- renderPlotly({
+    render_grafico_series_estacionaria(input, "confirmed", saz=T)
+  })
+  
+  output$grafico_estac <- renderPlotly({
     render_grafico_series_estacionaria(input, "confirmed")
   })
   

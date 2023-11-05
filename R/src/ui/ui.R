@@ -128,6 +128,13 @@ ui <- dashboardPage(
                              
                              column(width = 6,
                                     box(width = NULL, solidHeader = TRUE,
+                                        plotlyOutput("grafico_estac", height = 500)
+                                    )
+                             )
+                           ),
+                           fluidRow(
+                             column(width = 6,
+                                    box(width = NULL, solidHeader = TRUE,
                                         plotlyOutput("grafico_ACF", height = 500)
                                     )
                              )

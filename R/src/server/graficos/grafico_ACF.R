@@ -16,10 +16,12 @@ grafico_ACF <- function(df, variavel, escala, titulo_grafico, eixo_x, eixo_y) {
     slice(-1) %>%
     mutate(sem_tendencia = diff(df[[variavel]]) - diff(tendencias))
   
+  sazonalidade <- estima_sazonalidade(df_sem_tendencia$sem_tendencia, df_sem_tendencia$date)
+  
   # Autocorrelação depois de retirar a tendência
   dados = tsibble(
     data = df_sem_tendencia$date,
-    y = df_sem_tendencia$sem_tendencia,
+    y = df_sem_tendencia$sem_tendencia - sazonalidade,
     index = data
   )
   
