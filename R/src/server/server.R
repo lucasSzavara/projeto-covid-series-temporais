@@ -120,6 +120,33 @@ server <- function(input, output, session) {
   })
   
   #================================================================== END: DIFERENÇAS GEOGRÁFICAS
+  
+  #================================================================== Efeito de Medidas Políticas
+  
+  output$html_filtro_cidade_mp <- renderUI({
+    est <- input$e_c_mp
+    if(!(is.null(est) || est == '')) {
+      cidades <- sort(unique(locais[locais$estados == est, ]$cidades))
+      return(selectInput("cidade_filtro_mp", "Cidade", c('', cidades), selectize = TRUE))
+    }
+  })
+  observe({
+    est <- input$e_c_mp
+    updateSelectInput(session, 'cidade_filtro_mp', selected='')
+  })
+  
+  #------------------------------------------------------------
+  
+  output$grafico_series_med_pol <- renderPlotly({
+    render_grafico_series_mp(input)
+  })
+  
+  
+  #------------------------------------------------------------
+  
+  #================================================================== END: Efeito de Medidas Políticas
+  
+  
   output$texto_sobre <- renderUI({
     tagList(
       tags$p(tags$b("Proposta do Dashboard:")),

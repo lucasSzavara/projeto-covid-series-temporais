@@ -51,6 +51,14 @@ dados_pais$date <- as.Date(dados_pais$date)
 # Criar lista de estados
 est <- c('', sort(unique(locais$estados)))
 
+# Variáveis
+Vars <- c("confirmed","deaths","vaccines")
+
+# Criar lista de medidas políticas
+m_p <- c("school_closing","workplace_closing","cancel_events","gatherings_restrictions",
+         "transport_closing","stay_home_restrictions","information_campaigns","testing_policy",
+         "elderly_people_protection","facial_coverings","vaccination_policy")
+
 #------------------------------------------------------------
 
 # Definir o UI
@@ -68,7 +76,7 @@ ui <- dashboardPage(
     )
   ),
   dashboardBody(
-    setSliderColor(c("#00C0EF", "#00C0EF"), c(1, 2)),  # Aplica a cor aos dois sliders
+    setSliderColor(c("#00C0EF", "#00C0EF", "#00C0EF"), c(1, 2, 3)),  # Aplica a cor aos três sliders
     chooseSliderSkin("Flat"),
     tabItems(
       tabItem(tabName = "vg",
@@ -248,8 +256,45 @@ ui <- dashboardPage(
       ),
       
       tabItem("efeito",
-              h2("Conteúdo da Página 4"),
-              # Adicione elementos específicos para a Página 4 aqui
+              fluidRow(
+                column(width = 4,
+                       box(title = span(icon("location-dot"), " Selecione a região de sua preferência"),
+                           width = NULL, status = "info", solidHeader = TRUE,
+                           selectInput("e_c_mp", "Estado", est, selectize = TRUE)
+                           ,uiOutput('html_filtro_cidade_mp'), collapsible = TRUE
+                       )
+                ),
+                
+                column(width = 4,
+                       box(title = span(icon("landmark"), " Selecione a variável e a medida política"),
+                           width = NULL, status = "info", solidHeader = TRUE,
+                           selectInput("var", "Variável", Vars, selectize = TRUE),
+                           selectInput("med_pol", "Medidas Políticas", m_p, selectize = TRUE),
+                           collapsible = TRUE
+                       )
+                ),
+                
+                column(
+                  width = 4,
+                  box(title = span(icon("calendar"), " Selecione o período de sua preferência"),
+                      width = NULL, status = "info", solidHeader = TRUE,
+                      sliderInput("date_slider_mp", "Período", min = min(dados_pais$date), max = max(dados_pais$date),
+                                  value = c(min(dados_pais$date), max(dados_pais$date))),
+                      collapsible = TRUE
+                  )
+                )
+                
+              ),
+              
+              fluidRow(
+                column(width = 12,
+                       box(width = NULL, solidHeader = TRUE,
+                           plotlyOutput("grafico_series_med_pol", height = 500)
+                       )
+                )
+                
+              )
+              
       ),
       tabItem("ind",
               h2("Conteúdo da Página 5"),
