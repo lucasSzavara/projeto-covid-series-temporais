@@ -151,6 +151,47 @@ server <- function(input, output, session) {
     )
   })
   
-  
+  # CSS para atualizar o slider
+  output$slider_style <- renderUI({
+    tags$style(HTML(
+      ".irs--flat .irs-bar {
+      top: 25px;
+      height: 12px;
+      background-color: #00C0EF;
+    }
+    .irs--flat .irs-from, .irs--flat .irs-to, .irs--flat .irs-single {
+      color: white;
+      font-size: 10px;
+      line-height: 1.333;
+      text-shadow: none;
+      padding: 1px 5px;
+      background-color: #00C0EF;
+      border-radius: 4px;
+    }
+    .irs--flat .irs-handle>i:first-child {
+      position: absolute;
+      display: block;
+      top: 0;
+      left: 50%;
+      width: 2px;
+      height: 100%;
+      margin-left: -1px;
+      background-color: #00C0EF;
+    }
+    .irs--flat .irs-from:before, .irs--flat .irs-to:before, .irs--flat .irs-single:before {
+      position: absolute;
+      display: block;
+      content: '';
+      bottom: -6px;
+      left: 50%;
+      width: 0;
+      height: 0;
+      margin-left: -3px;
+      overflow: hidden;
+      border: 3px solid transparent;
+      border-top-color: #00C0EF; 
+    }"
+    ))
+  })
   
 }

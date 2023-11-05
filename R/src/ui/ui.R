@@ -4,41 +4,6 @@ pacman::p_load(shiny,
                shinyWidgets, 
                plotly)
 
-# Função para personalizar a cor dos sliders
-# https://github.com/dreamRs/shinyWidgets/blob/26838f9e9ccdc90a47178b45318d110f5812d6e1/R/setSliderColor.R
-setSliderColor <- function(color, sliderId) {
-  # some tests to control inputs
-  stopifnot(!is.null(color))
-  stopifnot(is.character(color))
-  stopifnot(is.numeric(sliderId))
-  stopifnot(!is.null(sliderId))
-  
-  # the css class for ionrangeslider starts from 0
-  # therefore need to remove 1 from sliderId
-  sliderId <- sliderId - 1
-  
-  # create custom css background for each slider
-  # selected by the user
-  sliderCol <- lapply(sliderId, FUN = function(i) {
-    paste0(
-      ".js-irs-", i, " .irs-single,",
-      " .js-irs-", i, " .irs-from,",
-      " .js-irs-", i, " .irs-to,",
-      " .js-irs-", i, " .irs-bar-edge,",
-      " .js-irs-", i,
-      " .irs-bar{  border-color: transparent;background: ", color[i+1],
-      "; border-top: 1px solid ", color[i+1],
-      "; border-bottom: 1px solid ", color[i+1],
-      ";}"
-    )
-  })
-  
-  # insert this custom css code in the head
-  # of the shiny app
-  custom_head <- tags$head(tags$style(HTML(as.character(sliderCol))))
-  return(custom_head)
-}
-
 #------------------------------------------------------------
 
 # Carregar lista de nomes de estados e respectivas cidades
@@ -68,7 +33,6 @@ m_p_nomes <- c("Cancelamento de Eventos", "Proteção a Idosos", "Uso de Máscar
 
 # Definir o UI
 ui <- dashboardPage(
-  # ui <- dashboardPage(skin = "purple",
   dashboardHeader(title = span(icon("viruses"), "Covid-19")),
   dashboardSidebar(
     sidebarMenu(
@@ -80,7 +44,7 @@ ui <- dashboardPage(
     )
   ),
   dashboardBody(
-    setSliderColor(c("#00C0EF", "#00C0EF", "#00C0EF"), c(1, 2, 3)),  # Aplica a cor aos três sliders
+    uiOutput("slider_style"),
     chooseSliderSkin("Flat"),
     tabItems(
       tabItem(tabName = "evo",
