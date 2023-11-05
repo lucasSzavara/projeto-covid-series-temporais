@@ -84,7 +84,7 @@ server <- function(input, output, session) {
   
   
   output$grafico_series_1e2 <- renderPlotly({
-    render_grafico_series_comp_geo(input,"vaccines",10000)
+    render_grafico_series_comp_geo(input)
   })
   
   #================================================================== END: DIFERENÇAS GEOGRÁFICAS

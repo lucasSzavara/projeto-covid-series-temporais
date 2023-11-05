@@ -93,12 +93,13 @@ grafico_comp_geo_cidades <- function(df12,variavel,escala,cid1,est1,cid2,est2){
   }
 }
 
-render_grafico_series_comp_geo <- function(input, variavel, escala=1){
+render_grafico_series_comp_geo <- function(input, escala=1){
   est1 <- input$e_c1
   cid1 <- input$cidade_filtro1
   est2 <- input$e_c2
   cid2 <- input$cidade_filtro2
   slider <- input$date_slider1
+  variavel <- input$var1
   
   df1 <- carregar_dados(est1, cid1, slider, variavel)
   df2 <- carregar_dados(est2, cid2, slider, variavel)

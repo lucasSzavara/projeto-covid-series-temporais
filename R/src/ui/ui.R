@@ -53,11 +53,16 @@ est <- c('', sort(unique(locais$estados)))
 
 # Variáveis
 Vars <- c("confirmed","deaths","vaccines")
+Vars_nomes <- c("Casos Confirmados", "Óbitos", "Vacinas Administradas")
 
 # Criar lista de medidas políticas
-m_p <- c("school_closing","workplace_closing","cancel_events","gatherings_restrictions",
-         "transport_closing","stay_home_restrictions","information_campaigns","testing_policy",
-         "elderly_people_protection","facial_coverings","vaccination_policy")
+m_p <- c("cancel_events", "elderly_people_protection", "facial_coverings", "gatherings_restrictions",
+         "information_campaigns", "school_closing", "stay_home_restrictions", "testing_policy",
+         "transport_closing", "vaccination_policy", "workplace_closing")
+
+m_p_nomes <- c("Cancelamento de Eventos", "Proteção a Idosos", "Uso de Máscaras", "Restrições em Aglomerações",
+               "Campanhas Informativas", "Fechamento de Escolas", "Restrições de Permanência em Casa",
+               "Política de Testagem", "Fechamento de Transporte", "Vacinação", "Fechamento de Locais de Trabalho")
 
 #------------------------------------------------------------
 
@@ -91,7 +96,7 @@ ui <- dashboardPage(
                 column(width = 4,
                        box(title = span(icon("x"), " Selecione a variável de sua preferência"),
                            width = NULL, status = "info", solidHeader = TRUE,
-                           selectInput("var", "Variável", Vars, selectize = TRUE),
+                           selectInput("var", "Variável", setNames(Vars, Vars_nomes), selectize = TRUE),
                            collapsible = TRUE
                        )
                 ),
@@ -133,32 +138,44 @@ ui <- dashboardPage(
                            collapsible = TRUE, collapsed = TRUE
                        )
                 )
-              )
+              ),
               
-              
-              
-              
+              # fluidRow(
+              #   column(width = 12, 
+              #          box(title = span(icon("circle-question"), " Informaçoes sobre a Interpretação"), 
+              #              width = NULL, status = "info", solidHeader = TRUE,
+              #              # htmlOutput("texto_sobre"),
+              #              collapsible = TRUE, collapsed = TRUE
+              #          ),
+              #   )
+              # )
               
       ),
+      
+      
       
       tabItem("dg",
               fluidRow(
                 column(width = 4, 
                        box(title = span(icon("location-dot"), " Selecione a região de sua preferência"), 
                            width = NULL, status = "info", solidHeader = TRUE,
-                           selectInput("e_c1", "Estado1", est, selectize = TRUE),
-                           uiOutput('html_filtro_cidade1'), collapsible = TRUE
+                           column(width = 6,
+                                  selectInput("e_c1", "Estado1", est, selectize = TRUE),
+                                  uiOutput('html_filtro_cidade1'), collapsible = TRUE),
+                           column(width = 6,
+                                  selectInput("e_c2", "Estado2", est, selectize = TRUE),
+                                  uiOutput('html_filtro_cidade2'), collapsible = TRUE)
                        ),
                 ),
                 
                 column(width = 4,
-                       box(title = span(icon("location-dot"), " Selecione a região de sua preferência"), 
+                       box(title = span(icon("x"), " Selecione a variável de sua preferência"),
                            width = NULL, status = "info", solidHeader = TRUE,
-                           selectInput("e_c2", "Estado2", est, selectize = TRUE),
-                           uiOutput('html_filtro_cidade2'), collapsible = TRUE
-                       ),
+                           selectInput("var1", "Variável", setNames(Vars, Vars_nomes), selectize = TRUE),
+                           collapsible = TRUE
+                       )
                 ),
-                
+
                 column(width = 4,
                        box(title = span(icon("calendar"), " Selecione o período de sua preferência"),
                            width = NULL, status = "info", solidHeader = TRUE, collapsible = TRUE,
@@ -183,6 +200,8 @@ ui <- dashboardPage(
               # Adicione elementos específicos para a Página 3 aqui
       ),
       
+      
+      
       tabItem("efeito",
               fluidRow(
                 column(width = 4,
@@ -196,8 +215,8 @@ ui <- dashboardPage(
                 column(width = 4,
                        box(title = span(icon("landmark"), " Selecione a variável e a medida política"),
                            width = NULL, status = "info", solidHeader = TRUE,
-                           selectInput("var2", "Variável", Vars, selectize = TRUE),
-                           selectInput("med_pol", "Medidas Políticas", m_p, selectize = TRUE),
+                           selectInput("var2", "Variável", setNames(Vars, Vars_nomes), selectize = TRUE),
+                           selectInput("med_pol", "Medidas Políticas", setNames(m_p, m_p_nomes), selectize = TRUE),
                            collapsible = TRUE
                        )
                 ),
@@ -224,10 +243,16 @@ ui <- dashboardPage(
               )
               
       ),
+      
+      
+      
       tabItem("ind",
               h2("Conteúdo da Página 5"),
               # Adicione elementos específicos para a Página 5 aqui
       ),
+      
+      
+      
       tabItem("sobre",
               # h2("texto"),
               fluidRow(
@@ -238,7 +263,6 @@ ui <- dashboardPage(
                        ),
                 )
               )
-              # Adicione elementos específicos para a Página 5 aqui
       )
     )
   )
