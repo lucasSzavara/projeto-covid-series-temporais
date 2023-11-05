@@ -19,7 +19,7 @@ for(uf in unique(x$administrative_area_level_2)){
 
 # Salvar o nome de todos estados e cidades
 aux <- data.frame(estados, cidades)
-write.csv(aux[order(aux$estados, aux$cidades), ], './dados/auxiliar/estados_cidades.csv', row.names = F)
+write.csv(aux[order(aux$estados, aux$cidades), ], './dados/estados_cidades.csv', row.names = F)
 
 #------------------------------------------------------------
 

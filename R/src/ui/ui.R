@@ -67,7 +67,6 @@ ui <- dashboardPage(
   dashboardHeader(title = span(icon("viruses"), "Covid-19")),
   dashboardSidebar(
     sidebarMenu(
-      menuItem("Visão Geral", tabName = "vg", icon = icon("magnifying-glass")),
       menuItem("Evolução", tabName = "evo", icon = icon("chart-line")),
       menuItem("Diferenças geográficas", tabName = "dg", icon = icon("arrow-down-up-across-line")),
       menuItem("Efeito de medidas políticas", tabName = "efeito",icon = icon("landmark")),
@@ -79,11 +78,6 @@ ui <- dashboardPage(
     setSliderColor(c("#00C0EF", "#00C0EF", "#00C0EF"), c(1, 2, 3)),  # Aplica a cor aos três sliders
     chooseSliderSkin("Flat"),
     tabItems(
-      tabItem(tabName = "vg",
-              h2("Visão Geral"),
-              p("Menu sobre covid-19 no Brasil")
-              # Adicione elementos específicos para a Página 1 aqui
-      ),
       tabItem(tabName = "evo",
               fluidRow(
                 column(width = 4,
