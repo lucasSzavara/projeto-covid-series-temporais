@@ -41,22 +41,32 @@ grafico_sazonal <- function(datas, serie, titulo_grafico, eixo_x, eixo_y, period
   }
   
   if (periodo == "week") {
-    week <- week(datas)
+    week <- isoweek(datas)
     for (i in 1:length(week)) {
       if (nchar(week[i]) == 1) {
         week[i] <- paste0(0,week[i])
       }
     }
     
-    for(i in 1:length(fig$x$data)){
-      fig$x$data[[i]]$hovertemplate <- c(hover, paste('<b>', eixo_y, '</b>: %{y:,.0f}',
-                                                      '<b>Data</b>', datas[(week==str_sub(fig$x$data[[i]]$text[1], start=-2))
-                                                                           & (year(datas)==str_sub(fig$x$data[[i]]$text[1], start=-8, end=-5))],
-                                                      '<extra></extra>'
-      ))
+    if (length(datas[(week==str_sub(fig$x$data[[1]]$text[1], start=-2))
+                     & (year(datas)==str_sub(fig$x$data[[1]]$text[1], start=-8, end=-5))]) != 0) {
+      for(i in 1:length(fig$x$data)) {
+        fig$x$data[[i]]$hovertemplate <- c(hover, paste('<b>', eixo_y, '</b>: %{y:,.0f}',
+                                                        '<b>Data</b>', datas[(week==str_sub(fig$x$data[[i]]$text[1], start=-2))
+                                                                             & (year(datas)==str_sub(fig$x$data[[i]]$text[1], start=-8, end=-5))],
+                                                        '<extra></extra>'
+        ))
+      }
+    } else {
+      for(i in 1:length(fig$x$data)){
+        fig$x$data[[i]]$hovertemplate <- c(hover, paste('<b>', eixo_y, '</b>: %{y:,.0f}',
+                                                        '<b>Data</b>', datas[(week==str_sub(fig$x$data[[i]]$text[1], start=-2))],
+                                                        '<extra></extra>'
+        ))
+      }  
     }
   }
-
+  
   return(fig)
 }
 
