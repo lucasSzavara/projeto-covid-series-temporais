@@ -1,16 +1,46 @@
-grafico_comp_geo_default <- function(datas, series, titulo_grafico, eixo_x, eixo_y){
-  p <- as.data.frame(cbind(serie=series)) %>%
-    slice(-1) %>%
-    mutate(serie_mutada = diff(series)) %>%
-    ggplot(aes(x = datas[2:length(datas)], y = serie_mutada)) +
-    geom_line(color = "#2596be") +
-    labs(title = titulo_grafico, x = eixo_x, y = eixo_y) +
-    theme_minimal() +
-    scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
-  
-  fig <- ggplotly(p)
-  
-  return(fig)
+grafico_comp_geo_default <- function(datas, series, variavel){
+  if (variavel == "confirmed") {
+    p <- as.data.frame(cbind(serie=series)) %>%
+      slice(-1) %>%
+      mutate(serie_mutada = diff(series)) %>%
+      ggplot(aes(x = datas[2:length(datas)], y = serie_mutada)) +
+      geom_line(color = "#2596be") +
+      labs(title = "Casos confirmados no Brasil", x = "Ano", y = "Confirmados") +
+      theme_minimal() +
+      scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
+    
+    fig <- ggplotly(p)
+    
+    return(fig)
+  } else {
+    if (variavel == "deaths") {
+      p <- as.data.frame(cbind(serie=series)) %>%
+        slice(-1) %>%
+        mutate(serie_mutada = diff(series)) %>%
+        ggplot(aes(x = datas[2:length(datas)], y = serie_mutada)) +
+        geom_line(color = "#2596be") +
+        labs(title = "Mortalidade no Brasil", x = "Ano", y = "Número de mortos") +
+        theme_minimal() +
+        scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
+      
+      fig <- ggplotly(p)
+      
+      return(fig)
+    } else {
+      p <- as.data.frame(cbind(serie=series)) %>%
+        slice(-1) %>%
+        mutate(serie_mutada = diff(series)) %>%
+        ggplot(aes(x = datas[2:length(datas)], y = serie_mutada)) +
+        geom_line(color = "#2596be") +
+        labs(title = "Doses de vacinas administradas/10000 no Brasil", x = "Ano", y = "Doses administradas/10000") +
+        theme_minimal() +
+        scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
+      
+      fig <- ggplotly(p)
+      
+      return(fig)
+    }
+  }
 }
 
 grafico_comp_geo_estados <- function(df12,variavel,escala,est1,est2){
@@ -93,7 +123,7 @@ grafico_comp_geo_cidades <- function(df12,variavel,escala,cid1,est1,cid2,est2){
   }
 }
 
-render_grafico_series_comp_geo <- function(input, escala=1){
+render_grafico_series_comp_geo <- function(input){
   est1 <- input$e_c1
   cid1 <- input$cidade_filtro1
   est2 <- input$e_c2
@@ -110,6 +140,8 @@ render_grafico_series_comp_geo <- function(input, escala=1){
   
   if (variavel == "confirmed") {
     eixo_y <- paste("Casos confirmados")
+    escala <- 1
+    
     df1 <- df1 %>%
       slice(-1) %>%
       mutate(confirmed = diff(df1[[variavel]]))
@@ -120,6 +152,8 @@ render_grafico_series_comp_geo <- function(input, escala=1){
   } else {
     if (variavel == "deaths") {
       eixo_y <- paste("Número de mortos")
+      escala <- 1
+      
       df1 <- df1 %>%
         slice(-1) %>%
         mutate(deaths = diff(df1[[variavel]]))
@@ -129,6 +163,8 @@ render_grafico_series_comp_geo <- function(input, escala=1){
         mutate(deaths = diff(df2[[variavel]]))
     } else {
       eixo_y <- paste("Doses administradas/10000")
+      escala <- 10000
+      
       df1 <- df1 %>%
         slice(-1) %>%
         mutate(vaccines = diff(df1[[variavel]]))
@@ -145,7 +181,7 @@ render_grafico_series_comp_geo <- function(input, escala=1){
     dados_estados$date <- as.Date(dados_estados$date)
     df <- corrige(dados_estados, variavel)
     
-    p <- grafico_comp_geo_default(df$date,df[[variavel]] / escala, "Doses administradas/10000","Data","Doses administradas")
+    p <- grafico_comp_geo_default(df$date,df[[variavel]] / escala, variavel)
     
     return(p)
   } else if((est1 != '' && est2 != '') && (cid1 == '' && cid2 == '')){
