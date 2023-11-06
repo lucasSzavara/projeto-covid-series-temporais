@@ -90,25 +90,26 @@ ui <- dashboardPage(
                        )
                 )
               ),
-
-              fluidRow(
-                column(width = 6,
-                       box(title = span(icon("calendar"), " Selecione o período para o gráfico de sazonalidade"),
-                           width = NULL, status = "info", solidHeader = TRUE,
-                           selectInput("periodo", NULL, setNames(Periodos, Periodos_nomes), selectize = TRUE),
-                           collapsible = TRUE, collapsed = TRUE
-                       )
-                )
-              ),
               
               fluidRow(
                 column(width = 12,
                        box(title = span(icon("chart-line"), " Componentes da série"),
                            width = NULL, status = "info", solidHeader = TRUE,
                            fluidRow(column(width = 6,
+                                           dropdown(
+                                             tags$h3("Selecione o período de sua preferência"),
+                                             selectInput(
+                                               "periodo",
+                                               label = NULL,
+                                               choices = setNames(Periodos, Periodos_nomes),
+                                               selectize = TRUE
+                                             ),
+                                             style = "unite", icon = icon("gear"),
+                                             status = "primary", width = "300px",
+                                             tooltip = tooltipOptions(title = "Clique para ver mais filtros!")),
                                            plotlyOutput("grafico_saz", height = 500)),
-                             column(width = 6,
-                                    plotlyOutput("grafico_series_estac", height = 500))),
+                                    column(width = 6,
+                                           plotlyOutput("grafico_series_estac", height = 500))),
                            fluidRow(column(width = 6,
                                            plotlyOutput("grafico_estac", height = 500)),
                                     column(width = 6,
@@ -117,6 +118,36 @@ ui <- dashboardPage(
                        )
                 )
               ),
+              
+              
+
+              # fluidRow(
+              #   column(width = 12,
+              #          box(title = span(icon("chart-line"), " Componentes da série"),
+              #              width = NULL, status = "info", solidHeader = TRUE,
+              #              fluidRow(column(width = 6,
+              #                              dropdownButton(
+              #                                tags$h3("Selecione o período de sua preferência"),
+              #                                selectInput(
+              #                                  "periodo",
+              #                                  label = NULL,
+              #                                  choices = setNames(Periodos, Periodos_nomes),
+              #                                  selectize = TRUE
+              #                                ),
+              #                                icon = icon("gear"),
+              #                                status = "info", width = "300px",
+              #                                tooltip = tooltipOptions(title = "Clique para ver mais filtros!")),
+              #                              plotlyOutput("grafico_saz", height = 500)),
+              #                       column(width = 6,
+              #                              plotlyOutput("grafico_series_estac", height = 500))),
+              #              fluidRow(column(width = 6,
+              #                              plotlyOutput("grafico_estac", height = 500)),
+              #                       column(width = 6,
+              #                              plotlyOutput("grafico_ACF", height = 500))),
+              #              collapsible = TRUE, collapsed = TRUE
+              #          )
+              #   )
+              # ),
               
               # fluidRow(
               #   column(width = 12, 
