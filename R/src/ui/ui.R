@@ -20,6 +20,10 @@ est <- c('', sort(unique(locais$estados)))
 Vars <- c("confirmed","deaths","vaccines")
 Vars_nomes <- c("Casos Confirmados", "Óbitos", "Vacinas Administradas")
 
+#Períodos
+Periodos <- c("year","week")
+Periodos_nomes <- c("Anual","Semanal")
+
 # Criar lista de medidas políticas
 m_p <- c("cancel_events", "elderly_people_protection", "facial_coverings", "gatherings_restrictions",
          "information_campaigns", "school_closing", "stay_home_restrictions", "testing_policy",
@@ -83,6 +87,16 @@ ui <- dashboardPage(
                            width = NULL, status = "info", solidHeader = TRUE,
                            plotlyOutput("grafico_series", height = 500),
                            collapsible = TRUE, collapsed = FALSE
+                       )
+                )
+              ),
+
+              fluidRow(
+                column(width = 6,
+                       box(title = span(icon("calendar"), " Selecione o período para o gráfico de sazonalidade"),
+                           width = NULL, status = "info", solidHeader = TRUE,
+                           selectInput("periodo", NULL, setNames(Periodos, Periodos_nomes), selectize = TRUE),
+                           collapsible = TRUE, collapsed = TRUE
                        )
                 )
               ),

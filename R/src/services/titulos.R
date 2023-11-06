@@ -58,19 +58,33 @@ titulo_series_tendencia <- function(variavel, est, cid) {
 
 #-----------------------------------------------------------------------------------------------
 
-titulo_saz <- function(variavel, est, cid) {
+titulo_saz <- function(variavel, est, cid, periodo) {
   titulo <- ""
   
-  if (variavel == "confirmed") {
-    aux <- paste("Casos confirmados em anos sucessivos")
-  } else {
-    if (variavel == "deaths") {
-      aux <- paste("Número de mortos em anos sucessivos")
+  if (periodo == "year") {
+    if (variavel == "confirmed") {
+      aux <- paste("Casos confirmados em anos sucessivos")
     } else {
-      aux <- paste("Doses administradas/10000 em anos sucessivos")
+      if (variavel == "deaths") {
+        aux <- paste("Número de mortos em anos sucessivos")
+      } else {
+        aux <- paste("Doses administradas/10000 em anos sucessivos")
+      }
     }
   }
   
+  if (periodo == "week") {
+    if (variavel == "confirmed") {
+      aux <- paste("Casos confirmados em diferentes semanas")
+    } else {
+      if (variavel == "deaths") {
+        aux <- paste("Número de mortos em diferentes semanas")
+      } else {
+        aux <- paste("Doses administradas/10000 em diferentes semanas")
+      }
+    }
+  }
+
   if (is.null(est) || est == '') {
     titulo <- paste(aux, "no Brasil")
   } else {

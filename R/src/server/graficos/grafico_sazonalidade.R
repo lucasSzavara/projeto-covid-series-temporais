@@ -30,13 +30,33 @@ grafico_sazonal <- function(datas, serie, titulo_grafico, eixo_x, eixo_y, period
     layout(showlegend = T)
   fig <- plotly_build(interactive_plot)
   hover <- c()
-  for(i in 1:length(fig$x$data)){
-    fig$x$data[[i]]$hovertemplate <- c(hover, paste('<b>', eixo_y, '</b>: %{y:,.0f}',
-                                                    '<b>Data</b>', datas[year(datas)==str_sub(fig$x$data[[i]]$text[1], start=-4)],
-                                                    '<extra></extra>'
-    ))
+  
+  if (periodo == "year") {
+    for(i in 1:length(fig$x$data)){
+      fig$x$data[[i]]$hovertemplate <- c(hover, paste('<b>', eixo_y, '</b>: %{y:,.0f}',
+                                                      '<b>Data</b>', datas[year(datas)==str_sub(fig$x$data[[i]]$text[1], start=-4)],
+                                                      '<extra></extra>'
+      ))
+    }
   }
   
+  if (periodo == "week") {
+    week <- week(datas)
+    for (i in 1:length(week)) {
+      if (nchar(week[i]) == 1) {
+        week[i] <- paste0(0,week[i])
+      }
+    }
+    
+    for(i in 1:length(fig$x$data)){
+      fig$x$data[[i]]$hovertemplate <- c(hover, paste('<b>', eixo_y, '</b>: %{y:,.0f}',
+                                                      '<b>Data</b>', datas[(week==str_sub(fig$x$data[[i]]$text[1], start=-2))
+                                                                           & (year(datas)==str_sub(fig$x$data[[i]]$text[1], start=-8, end=-5))],
+                                                      '<extra></extra>'
+      ))
+    }
+  }
+
   return(fig)
 }
 
@@ -47,6 +67,7 @@ render_grafico_sazonalidade <- function(input, escala=1){
   cid <- input$cidade_filtro
   slider <- input$date_slider
   variavel <- input$var
+  periodo <- input$periodo
   
   df <- carregar_dados(est, cid, slider, variavel)
   
@@ -55,7 +76,7 @@ render_grafico_sazonalidade <- function(input, escala=1){
     stop("A variável 'variavel' não é uma coluna válida nos dados.")
   }
   
-  titulo <- titulo_saz(variavel, est, cid)
+  titulo <- titulo_saz(variavel, est, cid, periodo)
   
   if (variavel == "confirmed") {
     eixo_y <- paste("Casos confirmados")
@@ -76,7 +97,7 @@ render_grafico_sazonalidade <- function(input, escala=1){
     }
   }
   
-  p <- grafico_sazonal(df$date,df[[variavel]] / escala, titulo,"Data",eixo_y,"year")
+  p <- grafico_sazonal(df$date,df[[variavel]] / escala, titulo,"Data",eixo_y,periodo)
   
   return(p)
   
