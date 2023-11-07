@@ -23,7 +23,7 @@ grafico_series <- function(datas, series, titulo_grafico, eixo_x, eixo_y) {
 #-----------------------------------------------------------------------------------------------
 
 # Funçao que renderiza o grafico de series para a variavel especificada
-render_grafico_series <- function(input, escala=1) {
+render_grafico_series <- function(input) {
   est <- input$e_c
   cid <- input$cidade_filtro
   slider <- input$date_slider
@@ -37,6 +37,12 @@ render_grafico_series <- function(input, escala=1) {
   }
   
   titulo <- titulo_series_tendencia(variavel, est, cid)
+  
+  if(variavel == "vaccines"){
+    escala <- 10000
+  } else {
+    escala <- 1
+  }
 
   p <- grafico_series(df$date, df[[variavel]] / escala, titulo, "Data", "Novos Confirmados Diários")
   
