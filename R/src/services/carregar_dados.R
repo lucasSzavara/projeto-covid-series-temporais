@@ -2,11 +2,6 @@
 
 #-----------------------------------------------------------------------------------------------
 
-# Carregar lista de nomes de estados e respectivas cidades
-# locais <- read.csv('dados/estados_cidades.csv')
-
-#-----------------------------------------------------------------------------------------------
-
 # Carregar Dados Salvos(até 2023-09-30)
 dados_pais <- read.csv('dados/pais/dados_pais.csv')
 

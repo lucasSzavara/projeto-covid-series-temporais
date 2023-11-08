@@ -48,7 +48,7 @@ ui <- dashboardPage(
     )
   ),
   dashboardBody(
-    uiOutput("slider_style"),
+    uiOutput("style"),
     chooseSliderSkin("Flat"),
     tabItems(
       tabItem(tabName = "evo",
@@ -81,15 +81,36 @@ ui <- dashboardPage(
                 
               ),
               
+              # fluidRow(
+              #   column(width = 12,
+              #          box(title = span(icon("chart-line"), " Gráfico de séries com tendencia estimada"),
+              #              width = NULL, status = "info", solidHeader = TRUE,
+              #              plotlyOutput("grafico_series", height = 500),
+              #              collapsible = TRUE, collapsed = FALSE
+              #          )
+              #   )
+              # ),
+              
               fluidRow(
                 column(width = 12,
                        box(title = span(icon("chart-line"), " Gráfico de séries com tendencia estimada"),
                            width = NULL, status = "info", solidHeader = TRUE,
-                           plotlyOutput("grafico_series", height = 500),
+                           tabBox(
+                             title = NULL,
+                             id = "tabset1",
+                             width = NULL,
+                             tabPanel("Casos Diários",
+                                      plotlyOutput("grafico_series", height = 500)
+                             ),
+                             tabPanel("Casos Acumulados",
+                                      plotlyOutput("grafico_series_acumulada", height = 500)
+                             )
+                           ),
                            collapsible = TRUE, collapsed = FALSE
                        )
                 )
               ),
+              
               
               fluidRow(
                 column(width = 12,
@@ -118,36 +139,6 @@ ui <- dashboardPage(
                        )
                 )
               ),
-              
-              
-
-              # fluidRow(
-              #   column(width = 12,
-              #          box(title = span(icon("chart-line"), " Componentes da série"),
-              #              width = NULL, status = "info", solidHeader = TRUE,
-              #              fluidRow(column(width = 6,
-              #                              dropdownButton(
-              #                                tags$h3("Selecione o período de sua preferência"),
-              #                                selectInput(
-              #                                  "periodo",
-              #                                  label = NULL,
-              #                                  choices = setNames(Periodos, Periodos_nomes),
-              #                                  selectize = TRUE
-              #                                ),
-              #                                icon = icon("gear"),
-              #                                status = "info", width = "300px",
-              #                                tooltip = tooltipOptions(title = "Clique para ver mais filtros!")),
-              #                              plotlyOutput("grafico_saz", height = 500)),
-              #                       column(width = 6,
-              #                              plotlyOutput("grafico_series_estac", height = 500))),
-              #              fluidRow(column(width = 6,
-              #                              plotlyOutput("grafico_estac", height = 500)),
-              #                       column(width = 6,
-              #                              plotlyOutput("grafico_ACF", height = 500))),
-              #              collapsible = TRUE, collapsed = TRUE
-              #          )
-              #   )
-              # ),
               
               # fluidRow(
               #   column(width = 12, 

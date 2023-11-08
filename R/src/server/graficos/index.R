@@ -1,4 +1,5 @@
 source("./src/server/graficos/grafico_series.R")
+source("./src/server/graficos/grafico_series_acumulada.R")
 source("./src/server/graficos/grafico_sazonalidade.R")
 source("./src/server/graficos/grafico_series_estac.R")
 source("./src/server/graficos/grafico_ACF.R")

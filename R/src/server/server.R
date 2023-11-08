@@ -38,6 +38,10 @@ server <- function(input, output, session) {
     render_grafico_series(input)
   })
   
+  output$grafico_series_acumulada <- renderPlotly({
+    render_grafico_series_acumulada(input)
+  })
+  
   output$grafico_saz <- renderPlotly({
     render_grafico_sazonalidade(input)
   })
@@ -152,9 +156,11 @@ server <- function(input, output, session) {
   })
   
   # CSS para atualizar o slider
-  output$slider_style <- renderUI({
+  output$style <- renderUI({
     tags$style(HTML(
-      ".irs--flat .irs-bar {
+      "
+      /* Estilo para o slider*/
+      .irs--flat .irs-bar {
       top: 25px;
       height: 12px;
       background-color: #00C0EF;
@@ -190,7 +196,13 @@ server <- function(input, output, session) {
       overflow: hidden;
       border: 3px solid transparent;
       border-top-color: #00C0EF; 
-    }"
+    }
+    
+    /* Estilo para a aba ativa no tabBox */
+    .nav-tabs-custom > .nav-tabs > li.active {
+          border-top-color: #00C0EF;
+    }
+      "
     ))
   })
   
