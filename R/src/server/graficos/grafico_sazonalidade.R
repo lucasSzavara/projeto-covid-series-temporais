@@ -24,6 +24,7 @@ grafico_sazonal <- function(datas, serie, titulo_grafico, eixo_x, eixo_y, period
       title = titulo_grafico,
       labels = "right"
     ) +
+    theme_minimal() +
     guides(color = guide_legend(title = "Legenda"))
   interactive_plot <- ggplotly(G + theme(plot.title=element_text(size=10)), tooltip = c("all"))
   interactive_plot <- interactive_plot %>%
