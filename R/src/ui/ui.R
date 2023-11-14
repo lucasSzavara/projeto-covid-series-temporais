@@ -81,16 +81,6 @@ ui <- dashboardPage(
                 
               ),
               
-              # fluidRow(
-              #   column(width = 12,
-              #          box(title = span(icon("chart-line"), " Gráfico de séries com tendencia estimada"),
-              #              width = NULL, status = "info", solidHeader = TRUE,
-              #              plotlyOutput("grafico_series", height = 500),
-              #              collapsible = TRUE, collapsed = FALSE
-              #          )
-              #   )
-              # ),
-              
               fluidRow(
                 column(width = 12,
                        box(title = span(icon("chart-line"), " Gráfico de séries com tendencia estimada"),
@@ -140,15 +130,15 @@ ui <- dashboardPage(
                 )
               ),
               
-              # fluidRow(
-              #   column(width = 12, 
-              #          box(title = span(icon("circle-question"), " Informaçoes sobre a Interpretação"), 
-              #              width = NULL, status = "info", solidHeader = TRUE,
-              #              # htmlOutput("texto_sobre"),
-              #              collapsible = TRUE, collapsed = TRUE
-              #          ),
-              #   )
-              # )
+              fluidRow(
+                column(width = 12,
+                       box(title = span(icon("circle-question"), " Informaçoes sobre a Interpretação"),
+                           width = NULL, status = "success", solidHeader = TRUE,
+                           # htmlOutput("texto_sobre"),
+                           collapsible = TRUE, collapsed = TRUE
+                       ),
+                )
+              )
               
       ),
       

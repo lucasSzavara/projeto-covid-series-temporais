@@ -202,6 +202,18 @@ server <- function(input, output, session) {
     .nav-tabs-custom > .nav-tabs > li.active {
           border-top-color: #00C0EF;
     }
+    
+    /* Estilo caixa de informaçoes dos graficos */
+    .box.box-solid.box-success>.box-header {
+    color: #fff;
+    background: #7c878b;
+    background-color: #7c878b;
+    }
+    .box.box-solid.box-success {
+    border: 1px solid #7c878b;
+    }
+
+
       "
     ))
   })
