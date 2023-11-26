@@ -11,7 +11,8 @@ pacman::p_load(shiny,
                stringr, 
                drc,
                ggpubr,
-               padr)
+               padr,
+               zoo)
 
 #------------------------------------------------------------
 

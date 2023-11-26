@@ -132,6 +132,27 @@ ui <- dashboardPage(
               
               fluidRow(
                 column(width = 12,
+                       box(title = span(icon("chart-line"), "Transformações dos dados"),
+                           width = NULL, status = "info", solidHeader = TRUE,
+                           fluidRow(column(width = 6,
+                                           plotlyOutput("grafico_transf1", height = 500)),
+                                    column(width = 6,
+                                           plotlyOutput("grafico_ACF_transf1", height = 500))),
+                           fluidRow(column(width = 6,
+                                           plotlyOutput("grafico_transf2", height = 500)),
+                                    column(width = 6,
+                                           plotlyOutput("grafico_ACF_transf2", height = 500))),
+                       fluidRow(column(width = 6,
+                                           plotlyOutput("grafico_transf3", height = 500)),
+                                column(width = 6,
+                                           plotlyOutput("grafico_ACF_transf3", height = 500))),
+                collapsible = TRUE, collapsed = TRUE
+                       )
+                )
+              ),
+              
+              fluidRow(
+                column(width = 12,
                        box(title = span(icon("circle-question"), " Informaçoes sobre a Interpretação"),
                            width = NULL, status = "success", solidHeader = TRUE,
                            # htmlOutput("texto_sobre"),

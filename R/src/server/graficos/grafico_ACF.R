@@ -3,7 +3,7 @@
 #-----------------------------------------------------------------------------------------------
 
 # Função que gera o gráfico de autocorrelação
-grafico_ACF <- function(df, variavel, escala, titulo_grafico, eixo_x, eixo_y) {
+grafico_ACF <- function(df, variavel, escala, titulo_grafico, eixo_x, eixo_y, transf=0) {
   # Ajustar escala
   df <- df %>%
     mutate(!!variavel := df[[variavel]] / escala)
@@ -18,25 +18,103 @@ grafico_ACF <- function(df, variavel, escala, titulo_grafico, eixo_x, eixo_y) {
   
   sazonalidade <- estima_sazonalidade(df_sem_tendencia$sem_tendencia, df_sem_tendencia$date)
   
-  # Autocorrelação depois de retirar a tendência
-  dados = tsibble(
-    data = df_sem_tendencia$date,
-    y = df_sem_tendencia$sem_tendencia - sazonalidade,
-    index = data
-  )
+  if (transf==0) {
+    dados = tsibble(
+      data = df_sem_tendencia$date,
+      y = df_sem_tendencia$sem_tendencia - sazonalidade,
+      index = data
+    )
+    
+    G <- 
+      dados %>% 
+      ACF() %>% 
+      autoplot() +
+      labs(
+        x = eixo_x,
+        y = eixo_y,
+        title = titulo_grafico
+      ) +
+      coord_cartesian(ylim=c(-1,1)) +
+      theme_minimal()
+  }
   
-  # Gerar o gráfico
-  G <- 
-    dados %>% 
-    ACF() %>% 
-    autoplot() +
-    labs(
-      x = eixo_x,
-      y = eixo_y,
-      title = titulo_grafico
-    ) +
-    coord_cartesian(ylim=c(-1,1)) +
-    theme_minimal()
+  if (transf==1) {
+    #y <- df_sem_tendencia$sem_tendencia - sazonalidade
+    y <- df_sem_tendencia$sem_tendencia
+    ysd <- rollapply(y, width=180, FUN = sd, fill = NA)
+    index <- which(!is.na(ysd))
+
+    dados = tsibble(
+      data = df_sem_tendencia$date[index],
+      y = y[index]/ysd[index],
+      index = data
+    )
+    
+    G <- 
+      dados %>% 
+      ACF() %>% 
+      autoplot() +
+      labs(
+        x = eixo_x,
+        y = eixo_y,
+        title = titulo_grafico
+      ) +
+      coord_cartesian(ylim=c(-1,1)) +
+      theme_minimal()
+  }
+
+  if (transf==2) {
+    #y <- df_sem_tendencia$sem_tendencia - sazonalidade
+    y <- df_sem_tendencia$sem_tendencia
+    ysd <- rollapply(y, width=180, FUN = sd, fill = NA)
+    index <- which(!is.na(ysd))
+    y <- y[index]/ysd[index]
+    sazonalidade <- estima_sazonalidade(y, df_sem_tendencia$date[index])
+    
+    
+    dados = tsibble(
+      data = df_sem_tendencia$date[index],
+      y = y - sazonalidade,
+      index = data
+    )
+    
+    G <- 
+      dados %>% 
+      ACF(lag_max=90) %>% 
+      autoplot() +
+      labs(
+        x = eixo_x,
+        y = eixo_y,
+        title = titulo_grafico
+      ) +
+      coord_cartesian(ylim=c(-1,1)) +
+      theme_minimal()
+  }
+
+  if (transf==3) {
+    #y <- df_sem_tendencia$sem_tendencia - sazonalidade
+    y <- df_sem_tendencia$sem_tendencia
+    ysd <- rollapply(y, width=25, FUN = sd, fill = NA)
+    index <- which(!is.na(ysd))
+    
+    dados = tsibble(
+      data = df_sem_tendencia$date[index[9:length(index)]],
+      y = diff(diff(y[index]/ysd[index],lag=7)),
+      index = data
+    )
+    
+    G <- 
+      dados %>% 
+      ACF() %>% 
+      autoplot() +
+      labs(
+        x = eixo_x,
+        y = eixo_y,
+        title = titulo_grafico
+      ) +
+      coord_cartesian(ylim=c(-1,1)) +
+      theme_minimal()
+  }
   
   fig <- ggplotly(G + theme(plot.title=element_text(size=10))
 )
@@ -49,7 +127,7 @@ grafico_ACF <- function(df, variavel, escala, titulo_grafico, eixo_x, eixo_y) {
 #-----------------------------------------------------------------------------------------------
 
 # Função que renderiza o gráfico de autocorrelação para a variável especificada
-render_grafico_ACF <- function(input, escala = 1, eixo_x = "Defasagem", eixo_y = "Autocorrelação") {
+render_grafico_ACF <- function(input, escala = 1, eixo_x = "Defasagem", eixo_y = "Autocorrelação", transf=0) {
   # Extrair informações do input
   est <- input$e_c
   cid <- input$cidade_filtro
@@ -68,7 +146,7 @@ render_grafico_ACF <- function(input, escala = 1, eixo_x = "Defasagem", eixo_y =
   titulo <- titulo_series_acf(variavel, est, cid)
   
   # Gerar o gráfico
-  p <- grafico_ACF(df, variavel, escala, titulo, eixo_x, eixo_y)
+  p <- grafico_ACF(df, variavel, escala, titulo, eixo_x, eixo_y, transf)
   
   return(p)
 }
