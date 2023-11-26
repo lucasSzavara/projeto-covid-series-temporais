@@ -5,18 +5,18 @@
 # Funçao que gera o grafico de series
 grafico_series <- function(datas, series, titulo_grafico, eixo_x, eixo_y) {
   tendencias <- estima_tendencia(series)
-  p <- as.data.frame(cbind(serie=series)) %>%
-    slice(-1) %>%
-    mutate(serie_mutada = diff(series)) %>%
-    ggplot(aes(x = datas[2:length(datas)], y = serie_mutada)) +
-    geom_line(color = "#2596be") +
+  p <- data.frame(datas=datas[2:length(datas)],series=diff(series),tendencias=diff(tendencias))
+  
+  fig <- ggplot(p,aes(x=datas))+
+    geom_line(aes(y = series, color = "Série"), linewidth = 1) +
+    geom_line(aes(y = tendencias, color = "Tendência"), linewidth = 1) +
+    scale_color_manual(values = c("Série" = "#2596be", "Tendência" = "#be4d25")) +
     labs(title = titulo_grafico, x = eixo_x, y = eixo_y) +
     theme_minimal() +
-    scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y") +
-    geom_line(aes(x=datas[2:length(datas)], y=diff(tendencias)), color="#be4d25", size = 1)
+    scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
   
-  fig <- ggplotly(p)
-
+  fig <- ggplotly(fig)
+  
   return(fig)
 }
 
@@ -28,9 +28,9 @@ render_grafico_series <- function(input) {
   cid <- input$cidade_filtro
   slider <- input$date_slider
   variavel <- input$var
-
+  
   df <- carregar_dados(est, cid, slider, variavel)
-
+  
   # Verifica se a variável 'variavel' é uma coluna válida nos dados
   if (!(variavel %in% names(df))) {
     stop("A variável 'variavel' não é uma coluna válida nos dados.")
@@ -43,7 +43,7 @@ render_grafico_series <- function(input) {
   } else {
     escala <- 1
   }
-
+  
   p <- grafico_series(df$date, df[[variavel]] / escala, titulo, "Data", "Novos Confirmados Diários")
   
   return(p)
