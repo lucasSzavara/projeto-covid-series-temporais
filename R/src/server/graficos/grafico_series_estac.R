@@ -5,7 +5,6 @@
 # Funçao que gera o grafico de series estacionaria
 grafico_series_estacionaria <- function(datas, series, titulo_grafico, eixo_x, eixo_y, saz=F, transf=0) {
   tendencias <- estima_tendencia(series)
-  sazonalidade <- estima_sazonalidade(diff(series - tendencias), datas[2:length(datas)])
   p <- as.data.frame(cbind(serie=series)) %>%
     slice(-1) %>%
     mutate(serie_mutada = diff(series))
@@ -21,7 +20,7 @@ grafico_series_estacionaria <- function(datas, series, titulo_grafico, eixo_x, e
   else {
     if (transf==0) {
       x <- datas[2:length(datas)]
-      y <- p$serie_mutada - diff(tendencias) - sazonalidade
+      y <- p$serie_mutada - diff(tendencias)
       #y <- p$serie_mutada - diff(tendencias)
       #ysd <- rollapply(y, width=15, FUN = sd, fill = NA)
       #index <- which(!is.na(ysd))
@@ -58,9 +57,9 @@ grafico_series_estacionaria <- function(datas, series, titulo_grafico, eixo_x, e
       index <- which(!is.na(ysd))
       x <- x[index]
       y <- y[index]/ysd[index]
-      sazonalidade <- estima_sazonalidade(y, x)
-      p <- p[index,1:2] %>%
-        ggplot(aes(x = x, y = y - sazonalidade)) +
+      cat(length(x[8:length(x)]), length(diff(y, lag=7)))
+      p <- data.frame(a=diff(y, lag=7), b=x[8:length(x)]) %>%
+        ggplot(aes(x = b, y = a)) +
         geom_line(color = "#2596be") +
         labs(title = titulo_grafico, x = eixo_x, y = eixo_y) +
         theme_minimal() +

@@ -15,9 +15,7 @@ grafico_ACF <- function(df, variavel, escala, titulo_grafico, eixo_x, eixo_y, tr
   df_sem_tendencia <- df %>%
     slice(-1) %>%
     mutate(sem_tendencia = diff(df[[variavel]]) - diff(tendencias))
-  
-  sazonalidade <- estima_sazonalidade(df_sem_tendencia$sem_tendencia, df_sem_tendencia$date)
-  
+
   if (transf==0) {
     dados = tsibble(
       data = df_sem_tendencia$date,
@@ -69,12 +67,10 @@ grafico_ACF <- function(df, variavel, escala, titulo_grafico, eixo_x, eixo_y, tr
     ysd <- rollapply(y, width=180, FUN = sd, fill = NA)
     index <- which(!is.na(ysd))
     y <- y[index]/ysd[index]
-    sazonalidade <- estima_sazonalidade(y, df_sem_tendencia$date[index])
-    
     
     dados = tsibble(
-      data = df_sem_tendencia$date[index],
-      y = y - sazonalidade,
+      data = df_sem_tendencia$date[index][8:length(index)],
+      y = diff(y, lag=7),
       index = data
     )
     

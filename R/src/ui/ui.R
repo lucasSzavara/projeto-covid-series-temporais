@@ -120,33 +120,12 @@ ui <- dashboardPage(
                                              tooltip = tooltipOptions(title = "Clique para ver mais filtros!")),
                                            plotlyOutput("grafico_saz", height = 500)),
                                     column(width = 6,
-                                           plotlyOutput("grafico_series_estac", height = 500))),
-                           fluidRow(column(width = 6,
-                                           plotlyOutput("grafico_estac", height = 500)),
-                                    column(width = 6,
-                                           plotlyOutput("grafico_ACF", height = 500))),
-                           collapsible = TRUE, collapsed = TRUE
-                       )
-                )
-              ),
-              
-              fluidRow(
-                column(width = 12,
-                       box(title = span(icon("chart-line"), "Transformações dos dados"),
-                           width = NULL, status = "info", solidHeader = TRUE,
-                           fluidRow(column(width = 6,
-                                           plotlyOutput("grafico_transf1", height = 500)),
-                                    column(width = 6,
-                                           plotlyOutput("grafico_ACF_transf1", height = 500))),
+                                           plotlyOutput("grafico_transf1", height = 500))),
                            fluidRow(column(width = 6,
                                            plotlyOutput("grafico_transf2", height = 500)),
                                     column(width = 6,
                                            plotlyOutput("grafico_ACF_transf2", height = 500))),
-                       fluidRow(column(width = 6,
-                                           plotlyOutput("grafico_transf3", height = 500)),
-                                column(width = 6,
-                                           plotlyOutput("grafico_ACF_transf3", height = 500))),
-                collapsible = TRUE, collapsed = TRUE
+                           collapsible = TRUE, collapsed = TRUE
                        )
                 )
               ),
