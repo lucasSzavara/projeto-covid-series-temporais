@@ -182,5 +182,28 @@ titulo_series_acf <- function(variavel, est, cid) {
   return(titulo)
 }
 
-
-
+titulo_series_pacf <- function(variavel, est, cid) {
+  titulo <- ""
+  
+  if (variavel == "confirmed") {
+    aux <- paste("Gráfico da autocorrelação parcial de Casos confirmados")
+  } else {
+    if (variavel == "deaths") {
+      aux <- paste("Gráfico da autocorrelação parcial do Número de mortos")
+    } else {
+      aux <- paste("Gráfico da autocorrelação parcial de Doses administradas/10000")
+    }
+  }
+  
+  if (is.null(est) || est == '') {
+    titulo <- paste(aux, "no Brasil")
+  } else {
+    if (!(is.null(cid) || cid == '')) {
+      titulo <- paste(aux, "em", est, "-", cid)
+    } else {
+      titulo <- paste(aux, "em", est)
+    }
+  }
+  
+  return(titulo)
+}
