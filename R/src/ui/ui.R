@@ -33,6 +33,11 @@ m_p_nomes <- c("Cancelamento de Eventos", "Proteção a Idosos", "Uso de Máscar
                "Campanhas Informativas", "Fechamento de Escolas", "Restrições de Permanência em Casa",
                "Política de Testagem", "Fechamento de Transporte", "Vacinação", "Fechamento de Locais de Trabalho")
 
+indices <- c("government_response_index", "stringency_index", "containment_health_index", "economic_support_index")
+
+indices_nomes <- c("Índice de resposta do governo", "Índice de rigor das políticas de restrição",
+                   "Índice de medidas de contenção e saúde", "Índice de medidas de suporte econômico")
+
 #------------------------------------------------------------
 
 # Definir o UI
@@ -234,8 +239,45 @@ ui <- dashboardPage(
       
       
       tabItem("ind",
-              h2("Conteúdo da Página 5"),
-              # Adicione elementos específicos para a Página 5 aqui
+              fluidRow(
+                column(width = 4,
+                       box(title = span(icon("location-dot"), " Selecione a região de sua preferência"),
+                           width = NULL, status = "info", solidHeader = TRUE,
+                           selectInput("e_c_ind", "Estado", est, selectize = TRUE)
+                           ,uiOutput('html_filtro_cidade_ind'), collapsible = TRUE
+                       )
+                ),
+                
+                column(width = 4,
+                       box(title = span(icon("landmark"), " Selecione a variável e o índice"),
+                           width = NULL, status = "info", solidHeader = TRUE,
+                           selectInput("var3", "Variável", setNames(Vars, Vars_nomes), selectize = TRUE),
+                           selectInput("ind_pol", "Índices", setNames(indices, indices_nomes), selectize = TRUE),
+                           collapsible = TRUE
+                       )
+                ),
+                
+                column(
+                  width = 4,
+                  box(title = span(icon("calendar"), " Selecione o período de sua preferência"),
+                      width = NULL, status = "info", solidHeader = TRUE,
+                      sliderInput("date_slider_ind", "Período", min = min(dados_pais$date), max = max(dados_pais$date),
+                                  value = c(min(dados_pais$date), max(dados_pais$date))),
+                      collapsible = TRUE
+                  )
+                )
+                
+              ),
+              
+              fluidRow(
+                column(width = 12, 
+                       box(title = span(icon("chart-line"), " Gráfico de séries para Índices Políticos"),
+                           width = NULL, status = "info", solidHeader = TRUE,
+                           plotlyOutput("grafico_series_ind_pol", height = 500),
+                           collapsible = TRUE, collapsed = FALSE
+                       )
+                )
+              )
       ),
       
       
