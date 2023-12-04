@@ -95,6 +95,14 @@ server <- function(input, output, session) {
   output$grafico_PACF_transf3 <- renderPlotly({
     render_grafico_PACF(input, transf = 3)
   })
+  
+  output$grafico_modelo <- renderPlotly({
+    render_grafico_modelo(input)
+  })
+  
+  output$grafico_residuo <- renderPlotly({
+    render_grafico_residuo(input)
+  })
   #================================================================== END: EVOLUÇÃO
   
   #================================================================== DIFERENÇAS GEOGRÁFICAS
