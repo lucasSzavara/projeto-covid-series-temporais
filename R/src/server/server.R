@@ -100,7 +100,7 @@ server <- function(input, output, session) {
     render_grafico_modelo(input)
   })
   
-  output$grafico_residuo <- renderPlotly({
+  output$grafico_residuo <- renderPlot({
     render_grafico_residuo(input)
   })
   #================================================================== END: EVOLUÇÃO

@@ -135,7 +135,7 @@ ui <- dashboardPage(
                            fluidRow(column(width = 6,
                                            plotlyOutput("grafico_modelo", height = 500)),
                                     column(width = 6,
-                                           plotlyOutput("grafico_residuo", height = 500))
+                                           plotOutput("grafico_residuo", height = 500))
                                     ),
                            collapsible = TRUE, collapsed = TRUE
                        )

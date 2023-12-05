@@ -1,9 +1,9 @@
 source("./src/services/estabiliza_serie.R")
 
-grafico_modelo <- function(serie, datas, titulo_grafico, eixo_x, eixo_y) {
-  serie_padronizada <- estabiliza_serie(serie)
+grafico_modelo <- function(serie, datas, titulo_grafico, eixo_x, eixo_y, w=90) {
+  serie_padronizada <- estabiliza_serie(serie, width=w)
   dados = tsibble(
-    data = datas,
+    data = datas[w:length(datas)],
     y = serie_padronizada,
     index = data
   )
@@ -43,17 +43,16 @@ render_grafico_modelo <- function(input) {
 }
 
 
-grafico_residuo <- function(serie, datas, titulo_grafico, eixo_x, eixo_y) {
-  serie_padronizada <- estabiliza_serie(serie)
+grafico_residuo <- function(serie, datas, titulo_grafico, eixo_x, eixo_y, w=90) {
+  serie_padronizada <- estabiliza_serie(serie, width=w)
   dados = tsibble(
-    data = datas,
+    data = datas[w:length(datas)],
     y = serie_padronizada,
     index = data
   )
   modelo <- dados %>% model(model=ARIMA(y, stepwise=FALSE))
   G <- modelo %>% gg_tsresiduals()
-  fig <- ggplotly(G)
-  return(fig)
+  return(G)
 }
 
 render_grafico_residuo <- function(input) {
@@ -78,3 +77,18 @@ render_grafico_residuo <- function(input) {
   }
   return(grafico_residuo(df[[variavel]] / escala, df$date, titulo, "Data", "Novos Confirmados Diários"))
 }
+
+
+# df <- carregar_dados('', '', c('2020-01-01', '2023-06-01'), 'deaths')
+# 
+# w <- 30
+# serie_padronizada <- estabiliza_serie(df$deaths, width=w)
+# dados = tsibble(
+#   data = df$date[w:length(df$date)],
+#   y = serie_padronizada,
+#   index = data
+# )
+# modelo <- dados %>% model(model=ARIMA(y, stepwise=FALSE))
+# modelo %>% gg_tsresiduals()
+# modelo %>% forecast(h=30) %>% autoplot(dados) +
+#   theme_minimal()

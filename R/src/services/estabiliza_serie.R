@@ -6,7 +6,7 @@ remove_tendencia <- function(serie) {
 padroniza_variancia <- function(serie, width=180) {
   # Recebe a série acumulada sem tendencia e retorna a série com variancia padronizada
   serie_diaria <- c(0, diff(serie))
-  ysd <- rollapply(serie_diaria, width=width, FUN = sd, fill = 1)
+  ysd <- rollapply(serie_diaria, width=width, FUN = sd, fill = NA)
   index <- which(!is.na(ysd))
   y <- serie_diaria[index]/ysd[index]
   return(y)
