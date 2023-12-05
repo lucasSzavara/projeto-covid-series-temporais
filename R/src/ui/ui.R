@@ -132,8 +132,13 @@ ui <- dashboardPage(
                                             plotlyOutput("grafico_ACF_transf2", height = 500)),
                                     column(width = 6,
                                            plotlyOutput("grafico_PACF_transf2", height = 500))),
+                           radioGroupButtons(
+                             inputId = "tipo_modelo",
+                             label = "",
+                             choices = c("Sugerido", "Busca stepwise", "Busca completa")
+                           ),
                            fluidRow(column(width = 6,
-                                           plotlyOutput("grafico_modelo", height = 500)),
+                                           plotOutput("grafico_modelo", height = 500)),
                                     column(width = 6,
                                            plotOutput("grafico_residuo", height = 500))
                                     ),

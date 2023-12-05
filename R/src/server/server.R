@@ -96,7 +96,7 @@ server <- function(input, output, session) {
     render_grafico_PACF(input, transf = 3)
   })
   
-  output$grafico_modelo <- renderPlotly({
+  output$grafico_modelo <- renderPlot({
     render_grafico_modelo(input)
   })
   
