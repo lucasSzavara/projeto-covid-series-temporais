@@ -4,14 +4,14 @@ pacman::p_load(shiny,
                shinyWidgets, 
                plotly)
 
-#------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------------
 
 # Carregar lista de nomes de estados e respectivas cidades
 locais <- read.csv('dados/estados_cidades.csv')
 dados_pais <- read.csv('dados/pais/dados_pais.csv')
 dados_pais$date <- as.Date(dados_pais$date)
 
-#------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------------
 
 # Criar lista de estados
 est <- c('', sort(unique(locais$estados)))
@@ -38,7 +38,7 @@ indices <- c("government_response_index", "stringency_index", "containment_healt
 indices_nomes <- c("Índice de resposta do governo", "Índice de rigor das políticas de restrição",
                    "Índice de medidas de contenção e saúde", "Índice de medidas de suporte econômico")
 
-#------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------------
 
 # Definir o UI
 ui <- dashboardPage(
@@ -52,6 +52,9 @@ ui <- dashboardPage(
       menuItem("Sobre", tabName = "sobre",icon = icon("circle-info"))
     )
   ),
+  
+  #------------------------------------------------------------------------------------------------------------------------
+  
   dashboardBody(
     uiOutput("style"),
     chooseSliderSkin("Flat"),
@@ -132,6 +135,15 @@ ui <- dashboardPage(
                                             plotlyOutput("grafico_ACF_transf2", height = 500)),
                                     column(width = 6,
                                            plotlyOutput("grafico_PACF_transf2", height = 500))),
+                           collapsible = TRUE, collapsed = TRUE
+                       )
+                )
+              ),
+              
+              fluidRow(
+                column(width = 12,
+                       box(title = span(icon("wave-square"), " Modelo ARMA"),
+                           width = NULL, status = "info", solidHeader = TRUE,
                            radioGroupButtons(
                              inputId = "tipo_modelo",
                              label = "",
@@ -141,7 +153,7 @@ ui <- dashboardPage(
                                            plotOutput("grafico_modelo", height = 500)),
                                     column(width = 6,
                                            plotOutput("grafico_residuo", height = 500))
-                                    ),
+                           ),
                            collapsible = TRUE, collapsed = TRUE
                        )
                 )
@@ -159,7 +171,7 @@ ui <- dashboardPage(
               
       ),
       
-      
+      #------------------------------------------------------------------------------------------------------------------------
       
       tabItem("dg",
               fluidRow(
@@ -203,7 +215,7 @@ ui <- dashboardPage(
               )
       ),
       
-      
+      #------------------------------------------------------------------------------------------------------------------------
       
       tabItem("efeito",
               fluidRow(
@@ -248,7 +260,7 @@ ui <- dashboardPage(
               
       ),
       
-      
+      #------------------------------------------------------------------------------------------------------------------------
       
       tabItem("ind",
               fluidRow(
@@ -292,7 +304,7 @@ ui <- dashboardPage(
               )
       ),
       
-      
+      #------------------------------------------------------------------------------------------------------------------------
       
       tabItem("sobre",
               # h2("texto"),
