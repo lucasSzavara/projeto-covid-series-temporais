@@ -14,7 +14,7 @@ grafico_modelo <- function(serie, datas, tipo_modelo, titulo_grafico, eixo_x, ei
   } else {
     modelo <- dados %>% model(model=ARIMA(y, stepwise=tipo_modelo=="Busca stepwise"))
   }
-  G <- modelo %>% forecast(h=30) %>% autoplot(dados) +
+  G <- modelo %>% forecast(h=90) %>% autoplot(dados) +
     labs(
       x = eixo_x,
       y = eixo_y,
@@ -38,18 +38,16 @@ render_grafico_modelo <- function(input) {
     stop("A variável 'variavel' não é uma coluna válida nos dados.")
   }
   
-  titulo <- titulo_series_tendencia(variavel, est, cid)
-  
   if(variavel == "vaccines"){
     escala <- 10000
   } else {
     escala <- 1
   }
-  return(grafico_modelo(df[[variavel]] / escala, df$date, tipo_modelo, titulo, "Data", "Novos Confirmados Diários"))
+  return(grafico_modelo(df[[variavel]] / escala, df$date, tipo_modelo, 'Valor real e previsões', "Data", "Modelo para a série estacionária"))
 }
 
 
-grafico_residuo <- function(serie, datas, tipo_modelo, titulo_grafico, eixo_x, eixo_y, w=90) {
+grafico_residuo <- function(serie, datas, tipo_modelo, w=90) {
   serie_padronizada <- estabiliza_serie(serie, width=w)
   dados = tsibble(
     data = datas[w:length(datas)],
@@ -81,14 +79,12 @@ render_grafico_residuo <- function(input) {
     stop("A variável 'variavel' não é uma coluna válida nos dados.")
   }
   
-  titulo <- titulo_series_tendencia(variavel, est, cid)
-  
   if(variavel == "vaccines"){
     escala <- 10000
   } else {
     escala <- 1
   }
-  return(grafico_residuo(df[[variavel]] / escala, df$date, tipo_modelo, titulo, "Data", "Novos Confirmados Diários"))
+  return(grafico_residuo(df[[variavel]] / escala, df$date, tipo_modelo))
 }
 
 # 
