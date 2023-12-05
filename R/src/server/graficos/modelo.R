@@ -14,7 +14,7 @@ grafico_modelo <- function(serie, datas, tipo_modelo, titulo_grafico, eixo_x, ei
   } else {
     modelo <- dados %>% model(model=ARIMA(y, stepwise=tipo_modelo=="Busca stepwise"))
   }
-  G <- modelo %>% forecast(h=90) %>% autoplot(dados) +
+  G <- modelo %>% forecast(h=30) %>% autoplot(dados) +
     labs(
       x = eixo_x,
       y = eixo_y,
