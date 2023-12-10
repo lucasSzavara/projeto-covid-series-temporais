@@ -111,3 +111,4 @@ render_grafico_residuo <- function(input) {
 # modelo %>% forecast(h=30) %>% autoplot(dados) +
 #   annotate("text", x=min(dados$data)+30, y=max(dados$y)-0.2, label=paste0("p = ",p,"\nq = ",q,"\nAIC = ",round(modelo$model[[1]]$fit$fit$AICc,2))) +
 #   theme_minimal()
+

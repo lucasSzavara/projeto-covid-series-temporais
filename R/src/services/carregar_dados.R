@@ -1,5 +1,5 @@
 # Funções que transformam e filtram/selecionam os dados
-
+library(dplyr)
 #-----------------------------------------------------------------------------------------------
 
 # Carregar Dados Salvos(até 2023-09-30)
