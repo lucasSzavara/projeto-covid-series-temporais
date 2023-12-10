@@ -87,21 +87,3 @@ render_grafico_residuo <- function(input) {
   return(grafico_residuo(df[[variavel]] / escala, df$date, tipo_modelo))
 }
 
-# 
-# df <- carregar_dados('', '', c('2020-01-01', '2023-06-01'), 'deaths')
-# 
-# w <- 90
-# serie_padronizada <- estabiliza_serie(df$deaths, width=w)
-# dados = tsibble(
-#   data = df$date[w:length(df$date)],
-#   y = serie_padronizada,
-#   index = data
-# )
-# 
-# p <- calcula_p(dados)
-# q <- calcula_q(dados)
-# cat(p, q)
-# modelo <- dados %>% model(model=ARIMA(y ~ 1 + pdq(p, 0, q) + PDQ(0, 0, 0)))
-# modelo %>% gg_tsresiduals()
-# modelo %>% forecast(h=30) %>% autoplot(dados) +
-#   theme_minimal()
