@@ -40,7 +40,7 @@ estabiliza_serie <- function(serie, width=180, invertible=F) {
     return(list(serie=serie, params=tend$params, sd=var$sd))
   }
   return(serie %>% remove_tendencia() %>%
-           padroniza_variancia(width=) %>%
+           padroniza_variancia(width=width) %>%
            remove_sazonalidade()
          )
 }

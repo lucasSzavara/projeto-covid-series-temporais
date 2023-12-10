@@ -39,7 +39,7 @@ grafico_PACF <- function(df, variavel, escala, titulo_grafico, eixo_x, eixo_y, t
   
   return(fig)
 }
-grafico_PACF(dados_pais, "confirmed", 10000, "", "", "") # testar a funçao
+# grafico_PACF(dados_pais, "confirmed", 10000, "", "", "") # testar a funçao
 
 #-----------------------------------------------------------------------------------------------
 
