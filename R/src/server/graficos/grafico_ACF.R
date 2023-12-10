@@ -74,15 +74,7 @@ grafico_ACF <- function(df, variavel, escala, titulo_grafico, eixo_x, eixo_y, tr
       index = data
     )
     
-    acf_values <- ACF(dados, lag_max=90)$acf
-    intercept_ind <- which(abs(acf_values) < qnorm((1 + 0.96) / 2) / sqrt(length(dados$y)))
-    comp <- which(c(diff(intercept_ind),2) !=1)
-    inds <- c(comp[1],abs(rev(diff(rev(comp)))))
-    ind <- which(c(comp[1],abs(rev(diff(rev(comp))))) > 5)[1]
-    soma <- sum(inds[1:ind-1])
-    valor <- comp[ind]
-    complemento <- valor - sum(1:valor %in% intercept_ind)
-    soma <- soma + complemento
+    soma <- calcula_q(dados)
     
     G <- 
       dados %>% 
