@@ -21,7 +21,7 @@ calcula_q <- function(dados) {
 
 calcula_p <- function(dados) {
   pacf_values <- PACF(dados, lag_max=90)$pacf
-  intercept_ind <- which(abs(acf_values) < qnorm((1 + 0.96) / 2) / sqrt(length(pacf_values)))
+  intercept_ind <- which(abs(pacf_values) < qnorm((1 + 0.96) / 2) / sqrt(length(pacf_values)))
   p <- NULL
   for (i in intercept_ind) {
     zeros <- 0
