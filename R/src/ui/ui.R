@@ -132,9 +132,9 @@ ui <- dashboardPage(
                            fluidRow(column(width = 6,
                                            plotlyOutput("grafico_transf2", height = 500)),
                                     column(width = 6,
-                                            plotlyOutput("grafico_ACF_transf2", height = 500)),
+                                            plotlyOutput("grafico_ACF", height = 500)),
                                     column(width = 6,
-                                           plotlyOutput("grafico_PACF_transf2", height = 500))),
+                                           plotlyOutput("grafico_PACF", height = 500))),
                            collapsible = TRUE, collapsed = TRUE
                        )
                 )
