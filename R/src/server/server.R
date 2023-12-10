@@ -46,14 +46,6 @@ server <- function(input, output, session) {
     render_grafico_sazonalidade(input)
   })
   
-  output$grafico_series_estac <- renderPlotly({
-    render_grafico_series_estacionaria(input, saz=T)
-  })
-  
-  output$grafico_estac <- renderPlotly({
-    render_grafico_series_estacionaria(input)
-  })
-  
   output$grafico_ACF <- renderPlotly({
     render_grafico_ACF(input)
   })
@@ -63,21 +55,17 @@ server <- function(input, output, session) {
   output$grafico_transf1 <- renderPlotly({
     render_grafico_series_estacionaria(input, transf = 1)
   })
-
+  
+  output$grafico_transf2 <- renderPlotly({
+    render_grafico_series_estacionaria(input, transf = 2)
+  })
+  
   output$grafico_ACF <- renderPlotly({
     render_grafico_ACF(input)
   })
   
   output$grafico_PACF <- renderPlotly({
     render_grafico_PACF(input)
-  })
-  
-  output$grafico_transf2 <- renderPlotly({
-    render_grafico_series_estacionaria(input, transf = 2)
-  })
-  
-  output$grafico_transf3 <- renderPlotly({
-    render_grafico_series_estacionaria(input, transf = 3)
   })
   
   output$grafico_modelo <- renderPlot({

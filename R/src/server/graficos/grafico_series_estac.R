@@ -3,96 +3,39 @@
 #-----------------------------------------------------------------------------------------------
 
 # Funçao que gera o grafico de series estacionaria
-grafico_series_estacionaria <- function(datas, series, titulo_grafico, eixo_x, eixo_y, saz=F, transf=0) {
-  tendencias <- estima_tendencia(series)
-  p <- as.data.frame(cbind(serie=series)) %>%
-    slice(-1) %>%
-    mutate(serie_mutada = diff(series))
-  if (saz) {
-    p <- p %>%
-    ggplot(aes(x = datas[2:length(datas)], y = serie_mutada-diff(tendencias))) +
+grafico_series_estacionaria <- function(datas, series, titulo_grafico, eixo_x, eixo_y, transf=1) {
+  
+  # Remover tendência e padronizar variância
+  if (transf == 1) {
+    series <- remove_tendencia(series)
+    series <- padroniza_variancia(series)
+  }
+  
+  # Estabilizar a série
+  if (transf == 2) {
+    series <- estabiliza_serie(series)
+  }
+  
+  x <- datas[187:length(datas)]
+  y <- series[8:length(series)]
+  
+  p <- ggplot(data.frame(x = x, y = y), aes(x = x, y = y)) +
     geom_line(color = "#2596be") +
     labs(title = titulo_grafico, x = eixo_x, y = eixo_y) +
     theme_minimal() +
-    scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y") +
-    geom_line(aes(x=datas[2:length(datas)], y=sazonalidade), color="#be4d25", size = 0.15)
-  }
-  else {
-    if (transf==0) {
-      x <- datas[2:length(datas)]
-      y <- p$serie_mutada - diff(tendencias)
-      #y <- p$serie_mutada - diff(tendencias)
-      #ysd <- rollapply(y, width=15, FUN = sd, fill = NA)
-      #index <- which(!is.na(ysd))
-      #x <- x[index]
-      #y <- y[index]/ysd[index]
-      #p <- p[index,1:2] %>%
-      p <- p[,1:2] %>%
-        ggplot(aes(x = x, y = y)) +
-        geom_line(color = "#2596be") +
-        labs(title = titulo_grafico, x = eixo_x, y = eixo_y) +
-        theme_minimal() +
-        scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
-    }
-    if (transf==1) {
-      x <- datas[2:length(datas)]
-      #y <- p$serie_mutada - diff(tendencias) - sazonalidade
-      y <- p$serie_mutada - diff(tendencias)
-      ysd <- rollapply(y, width=180, FUN = sd, fill = NA)
-      index <- which(!is.na(ysd))
-      x <- x[index]
-      y <- y[index]/ysd[index]
-      p <- p[index,1:2] %>%
-        ggplot(aes(x = x, y = y)) +
-        geom_line(color = "#2596be") +
-        labs(title = titulo_grafico, x = eixo_x, y = eixo_y) +
-        theme_minimal() +
-        scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
-    }
-    if (transf==2) {
-      x <- datas[2:length(datas)]
-      #y <- p$serie_mutada - diff(tendencias) - sazonalidade
-      y <- p$serie_mutada - diff(tendencias)
-      ysd <- rollapply(y, width=180, FUN = sd, fill = NA)
-      index <- which(!is.na(ysd))
-      x <- x[index]
-      y <- y[index]/ysd[index]
-      cat(length(x[8:length(x)]), length(diff(y, lag=7)))
-      p <- data.frame(a=diff(y, lag=7), b=x[8:length(x)]) %>%
-        ggplot(aes(x = b, y = a)) +
-        geom_line(color = "#2596be") +
-        labs(title = titulo_grafico, x = eixo_x, y = eixo_y) +
-        theme_minimal() +
-        scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
-    }
-    if (transf==3) {
-      x <- datas[2:length(datas)]
-      #y <- p$serie_mutada - diff(tendencias) - sazonalidade
-      y <- p$serie_mutada - diff(tendencias)
-      ysd <- rollapply(y, width=25, FUN = sd, fill = NA)
-      index <- which(!is.na(ysd))
-      x <- x[index]
-      y <- y[index]/ysd[index]
-      p <- p[index[9:length(index)],1:2] %>%
-        ggplot(aes(x = x[9:length(x)], y = diff(diff(y,lag=7)))) +
-        geom_line(color = "#2596be") +
-        labs(title = titulo_grafico, x = eixo_x, y = eixo_y) +
-        theme_minimal() +
-        scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
-    }
-  }
-
-      
-  fig <- ggplotly(p + theme(plot.title=element_text(size=10)))
+    scale_x_date(date_breaks = "4 months", date_labels = "%b-%Y")
+  
+  fig <- ggplotly(p + theme(plot.title = element_text(size = 10)))
   
   return(fig)
-  
 }
+# grafico_series_estacionaria(as.Date(dados_pais$date), dados_pais$confirmed, "titulo", "Data", "Novos Confirmados Diários", transf=1)
+# grafico_series_estacionaria(as.Date(dados_pais$date), dados_pais$confirmed, "titulo", "Data", "Novos Confirmados Diários", transf=2)
 
 #-----------------------------------------------------------------------------------------------
 
 # Funçao que renderiza o grafico de series estacionaria para a variavel especificada
-render_grafico_series_estacionaria <- function(input, saz=F, escala=1, transf=0) {
+render_grafico_series_estacionaria <- function(input, escala=1, transf=0) {
   est <- input$e_c
   cid <- input$cidade_filtro
   slider <- input$date_slider
@@ -105,15 +48,9 @@ render_grafico_series_estacionaria <- function(input, saz=F, escala=1, transf=0)
     stop("A variável 'variavel' não é uma coluna válida nos dados.")
   }
   
-  if (saz) {
-    titulo <- titulo_series_res(variavel, est, cid) 
-  }
-  
-  else {
-    titulo <- titulo_series_esta(variavel, est, cid) 
-  }
+  titulo <- titulo_series_esta(variavel, est, cid) 
 
-  p <- grafico_series_estacionaria(df$date, df[[variavel]] / escala, titulo, "Data", "Novos Confirmados Diários", saz=saz, transf=transf)
+  p <- grafico_series_estacionaria(df$date, df[[variavel]] / escala, titulo, "Data", "Novos Confirmados Diários", transf=transf)
 
   return(p)
 }
