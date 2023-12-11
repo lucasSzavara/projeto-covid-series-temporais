@@ -75,6 +75,10 @@ server <- function(input, output, session) {
   output$grafico_residuo <- renderPlot({
     render_grafico_residuo(input)
   })
+  
+  output$grafico_modelo_inv_transf <- renderPlot({
+    render_grafico_modelo_inv_transf(input)
+  })
   #================================================================== END: EVOLUÇÃO
   
   #================================================================== DIFERENÇAS GEOGRÁFICAS
