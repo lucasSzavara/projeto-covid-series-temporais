@@ -106,20 +106,38 @@ grafico_modelo_inv_transf <- function(series, datas, tipo_modelo, titulo_grafico
     q <- calcula_q(dados)
     modelo <- dados %>% model(model=ARIMA(y ~ 1 + pdq(p, 0, q) + PDQ(0, 0, 0)))
     pred <- modelo %>% forecast(h=30)
-    prevs <- (pred$.mean %>% diffinv(lag=7, xi=serie[(length(serie)-6):length(serie)]) * sd[length(sd)])[8:37] + calcula_tend(params, (n+1):(n+30))$n
+    prevs <- (pred$.mean %>% diffinv(lag=7, xi=serie[(length(serie)-6):length(serie)]) * sd[length(sd)])[8:37] + diff(calcula_tend(params, (n):(n+30))$n)
     
   } else {
     modelo <- dados %>% model(model=ARIMA(y, stepwise=tipo_modelo=="Busca stepwise"))
     pred <- modelo %>% forecast(h=30)
-    prevs <- (pred$.mean %>% diffinv(lag=7, xi=serie[(length(serie)-6):length(serie)]) * sd[length(sd)])[8:37] + calcula_tend(params, (n+1):(n+30))$n
+    prevs <- (pred$.mean %>% diffinv(lag=7, xi=serie[(length(serie)-6):length(serie)]) * sd[length(sd)])[8:37] + diff(calcula_tend(params, (n):(n+30))$n)
   }
   
-  G <- data.frame(value=diff(c(series, prevs)), t <- 2:(n+30)) %>%
-    ggplot() +
-    geom_line(aes(x=t, y=value)) +
-    geom_vline(aes(xintercept=n)) +
+  sigma <- parameters(pred$y)$sigma * sd[length(sd)]
+  
+  ic_80 <- data.frame(lower=qnorm(0.1, prevs, sigma), upper=qnorm(0.9, prevs, sigma))
+  ic_95 <- data.frame(lower=qnorm(0.025, prevs, sigma), upper=qnorm(0.975, prevs, sigma))
+  df_novo <- data.frame(
+    value=c(diff(series), prevs),
+    t <- 2:(n+30),
+    lower_80=c(diff(series), ic_80$lower),
+    upper_80=c(diff(series), ic_80$upper),
+    lower_95=c(diff(series), ic_95$lower),
+    upper_95=c(diff(series), ic_95$upper)
+  )
+  
+  G <- df_novo %>%
+    ggplot(aes(x=t, y=value)) +
+    geom_line() +
+    geom_linerange(aes(ymin=lower_80, ymax=upper_80, nivel='80%'), color='blue', alpha=0.5) +
+    geom_linerange(aes(ymin=lower_95, ymax=upper_95, nivel='95%'), color='blue', alpha=0.20) +
     theme_minimal() +
-    labs(title = titulo_grafico, x = eixo_x, y = eixo_y) + 
+    labs(
+      x = eixo_x,
+      y = eixo_y,
+      title = titulo_grafico
+    ) +
     theme(
       strip.background = element_rect(fill='lightgray', colour='lightgray')
     )
@@ -154,12 +172,16 @@ render_grafico_modelo_inv_transf <- function(input) {
 # df <- carregar_dados('', '', c('2020-01-01', '2023-06-01'), 'deaths')
 # 
 # w <- 90
-# serie_padronizada <- estabiliza_serie(df$deaths, width=w)
+# serie_padronizada <- estabiliza_serie(df$deaths, width=w, invertible=T)
 # dados = tsibble(
 #   data = df$date[w:length(df$date)],
-#   y = serie_padronizada,
+#   y = serie_padronizada$serie,
 #   index = data
 # )
+# 
+# serie <- serie_padronizada$serie
+# sd <- serie_padronizada$sd
+# params <- serie_padronizada$params
 # 
 # p <- calcula_p(dados)
 # q <- calcula_q(dados)
@@ -172,4 +194,34 @@ render_grafico_modelo_inv_transf <- function(input) {
 # modelo %>% forecast(h=30) %>% autoplot(dados) +
 #   annotate("text", x=min(dados$data)+30, y=max(dados$y)-0.2, label=paste0("p = ",p,"\nq = ",q,"\nAIC = ",round(modelo$model[[1]]$fit$fit$AICc,2))) +
 #   theme_minimal()
-
+# 
+# pred <- modelo %>% forecast(h=30)
+# n <- length(df$deaths)
+# prevs <- (pred$.mean %>% diffinv(lag=7, xi=serie[(length(serie)-6):length(serie)]) * sd[length(sd)])[8:37] + diff(calcula_tend(params, (n):(n+30))$n)
+# prevs
+# pred
+# 
+# sigma <- parameters(pred$y)$sigma * sd[length(sd)]
+# 
+# ic_80 <- data.frame(lower=qnorm(0.1, prevs, sigma), upper=qnorm(0.9, prevs, sigma))
+# ic_95 <- data.frame(lower=qnorm(0.025, prevs, sigma), upper=qnorm(0.975, prevs, sigma))
+# df_novo <- data.frame(
+#   value=c(diff(df$deaths), prevs),
+#   t <- 2:(n+30),
+#   lower_80=c(diff(df$deaths), ic_80$lower),
+#   upper_80=c(diff(df$deaths), ic_80$upper),
+#   lower_95=c(diff(df$deaths), ic_95$lower),
+#   upper_95=c(diff(df$deaths), ic_95$upper)
+# )
+# 
+# df_novo[(n-1):(n+29),]
+# 
+# df_novo %>%
+#   ggplot(aes(x=t, y=value)) +
+#   geom_line() +
+#   geom_linerange(aes(ymin=lower_80, ymax=upper_80), color='blue', alpha=0.5) +
+#   geom_linerange(aes(ymin=lower_95, ymax=upper_95), color='blue', alpha=0.20) +
+#   theme_minimal() +
+#   theme(
+#     strip.background = element_rect(fill='lightgray', colour='lightgray')
+#   )
