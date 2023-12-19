@@ -12,7 +12,8 @@ pacman::p_load(shiny,
                drc,
                ggpubr,
                padr,
-               zoo)
+               zoo,
+               distributional)
 
 #------------------------------------------------------------
 

@@ -14,6 +14,10 @@ grafico_modelo <- function(serie, datas, tipo_modelo, titulo_grafico, eixo_x, ei
   } else {
     modelo <- dados %>% model(model=ARIMA(y, stepwise=tipo_modelo=="Busca stepwise"))
   }
+  
+  if (!is.numeric(p) || !is.numeric(q)) {
+    stop("Error: p or q is not numeric.")
+  }
 
   G <- modelo %>% forecast(h=30) %>% autoplot(dados) +
     labs(
