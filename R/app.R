@@ -4,6 +4,7 @@ pacman::p_load(shiny,
                shinydashboard, 
                shinyWidgets, 
                shinythemes, 
+               distributional,
                COVID19, 
                fpp3, 
                plotly, 
@@ -12,8 +13,7 @@ pacman::p_load(shiny,
                drc,
                ggpubr,
                padr,
-               zoo,
-               distributional)
+               zoo)
 
 #------------------------------------------------------------
 
