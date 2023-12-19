@@ -13,6 +13,8 @@ grafico_modelo <- function(serie, datas, tipo_modelo, titulo_grafico, eixo_x, ei
     modelo <- dados %>% model(model=ARIMA(y ~ 1 + pdq(p, 0, q) + PDQ(0, 0, 0)))
   } else {
     modelo <- dados %>% model(model=ARIMA(y, stepwise=tipo_modelo=="Busca stepwise"))
+    p <- modelo$model[[1]]$fit$spec$p
+    q <- modelo$model[[1]]$fit$spec$q
   }
   
   if (!is.numeric(p) || !is.numeric(q)) {
