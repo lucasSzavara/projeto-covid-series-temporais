@@ -112,30 +112,49 @@ ui <- dashboardPage(
               
               fluidRow(
                 column(width = 12,
-                       box(title = span(icon("chart-line"), " Componentes da série"),
-                           width = NULL, status = "info", solidHeader = TRUE,
-                           fluidRow(column(width = 6,
-                                           dropdown(
-                                             tags$h3("Selecione o período de sua preferência"),
-                                             selectInput(
-                                               "periodo",
-                                               label = NULL,
-                                               choices = setNames(Periodos, Periodos_nomes),
-                                               selectize = TRUE
-                                             ),
-                                             style = "unite", icon = icon("gear"),
-                                             status = "primary", width = "300px",
-                                             tooltip = tooltipOptions(title = "Clique para ver mais filtros!")),
-                                           plotlyOutput("grafico_saz", height = 500)),
-                                    column(width = 6,
-                                           plotlyOutput("grafico_transf1", height = 500))),
-                           fluidRow(column(width = 6,
-                                           plotlyOutput("grafico_transf2", height = 500)),
-                                    column(width = 6,
-                                            plotlyOutput("grafico_ACF", height = 500)),
-                                    column(width = 6,
-                                           plotlyOutput("grafico_PACF", height = 500))),
-                           collapsible = TRUE, collapsed = TRUE
+                       box(
+                         title = span(icon("chart-line"), " Componentes da série"),
+                         width = NULL, status = "info", solidHeader = TRUE,
+                         fluidRow(
+                           column(width = 12,
+                                  plotlyOutput("grafico_saz", height = 500),
+                                  absolutePanel(
+                                    dropdown(
+                                      tags$h3("Selecione o período de sua preferência"),
+                                      selectInput(
+                                        "periodo",
+                                        label = NULL,
+                                        choices = setNames(Periodos, Periodos_nomes),
+                                        selectize = TRUE
+                                      ),
+                                      style = "unite", icon = icon("gear"),
+                                      status = "primary", width = "300px",
+                                      tooltip = tooltipOptions(title = "Clique para ver mais filtros!")
+                                    ),
+                                    top = "0%", left = "1%", width = 300, zIndex = 1000
+                                  )
+                           ),
+                           
+                         ),
+                         
+                         fluidRow(
+                           column(width = 6,
+                                  plotlyOutput("grafico_transf1", height = 500)
+                           ),
+                           column(width = 6,
+                                  plotlyOutput("grafico_transf2", height = 500)
+                           ),
+                           
+                         ),
+                         fluidRow(
+                           column(width = 6,
+                                  plotlyOutput("grafico_ACF", height = 500)
+                           ),
+                           column(width = 6,
+                                  plotlyOutput("grafico_PACF", height = 500)
+                           )
+                         ),
+                         collapsible = TRUE, collapsed = TRUE
                        )
                 )
               ),
@@ -149,6 +168,7 @@ ui <- dashboardPage(
                              label = "",
                              choices = c("Sugerido", "Busca stepwise", "Busca completa")
                            ),
+                           
                            fluidRow(column(width = 6,
                                            plotOutput("grafico_modelo", height = 500)),
                                     column(width = 6,
@@ -161,15 +181,15 @@ ui <- dashboardPage(
                 )
               ),
               
-              fluidRow(
-                column(width = 12,
-                       box(title = span(icon("circle-question"), " Informaçoes sobre a Interpretação"),
-                           width = NULL, status = "success", solidHeader = TRUE,
-                           # htmlOutput("texto_sobre"),
-                           collapsible = TRUE, collapsed = TRUE
-                       ),
-                )
-              )
+              # fluidRow(
+              #   column(width = 12,
+              #          box(title = span(icon("circle-question"), " Informaçoes sobre a Interpretação"),
+              #              width = NULL, status = "success", solidHeader = TRUE,
+              #              # htmlOutput("texto_sobre"),
+              #              collapsible = TRUE, collapsed = TRUE
+              #          ),
+              #   )
+              # )
               
       ),
       
