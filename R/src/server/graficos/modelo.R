@@ -39,7 +39,7 @@ render_grafico_modelo <- function(input) {
   variavel <- input$var
   tipo_modelo <- input$tipo_modelo
   
-  df <- carregar_dados(est, cid, slider, variavel)
+  df <- carregar_dados(est, cid, slider, variavel, TRUE)
   
   # Verifica se a variável 'variavel' é uma coluna válida nos dados
   if (!(variavel %in% names(df))) {
@@ -80,7 +80,7 @@ render_grafico_residuo <- function(input) {
   variavel <- input$var
   tipo_modelo <- input$tipo_modelo
   
-  df <- carregar_dados(est, cid, slider, variavel)
+  df <- carregar_dados(est, cid, slider, variavel, TRUE)
   
   # Verifica se a variável 'variavel' é uma coluna válida nos dados
   if (!(variavel %in% names(df))) {
@@ -159,7 +159,7 @@ render_grafico_modelo_inv_transf <- function(input) {
   variavel <- input$var
   tipo_modelo <- input$tipo_modelo
   
-  df <- carregar_dados(est, cid, slider, variavel)
+  df <- carregar_dados(est, cid, slider, variavel, TRUE)
   
   # Verifica se a variável 'variavel' é uma coluna válida nos dados
   if (!(variavel %in% names(df))) {
