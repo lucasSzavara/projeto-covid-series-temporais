@@ -175,9 +175,6 @@ server <- function(input, output, session) {
       tags$p("Os dados utilizados são provenientes do",
              tags$a(href = 'https://covid19datahub.io', target = "_blank", "COVID-19 Data Hub"), "."),
       
-      tags$p(tags$b("Modelos Utilizados:")),
-      tags$p("Descrever brevemente os modelos."),
-      
       tags$p(tags$b("Navegação no Dashboard:")),
       tags$p("Clique nas abas abaixo para explorar diferentes aspectos dos dados:"),
       tags$p("1.", tags$a("Evolução", onclick = "openTab('evo')", href = "#"), 
