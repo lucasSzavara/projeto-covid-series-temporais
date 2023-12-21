@@ -14,7 +14,7 @@ grafico_ACF <- function(df, variavel, escala, titulo_grafico, eixo_x, eixo_y) {
   
   # Criar um objeto tsibble com as datas ajustadas
   dados = tsibble(
-    data = as.Date(df$date[180:nrow(df)]),
+    data = as.Date(df$date[90:nrow(df)]),
     y = dados,
     index = data
   )

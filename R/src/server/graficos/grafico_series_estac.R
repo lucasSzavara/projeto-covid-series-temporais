@@ -16,7 +16,7 @@ grafico_series_estacionaria <- function(datas, series, titulo_grafico, eixo_x, e
     series <- estabiliza_serie(series)
   }
   
-  x <- datas[187:length(datas)]
+  x <- datas[97:length(datas)]
   y <- series[8:length(series)]
   
   p <- ggplot(data.frame(x = x, y = y), aes(x = x, y = y)) +
@@ -48,9 +48,14 @@ render_grafico_series_estacionaria <- function(input, escala=1, transf=0) {
     stop("A variável 'variavel' não é uma coluna válida nos dados.")
   }
   
-  titulo <- titulo_series_esta(variavel, est, cid) 
+  if (transf == 1) {
+    titulo <- titulo_series_res(variavel, est, cid)
+  }
+  if (transf == 2) {
+    titulo <- titulo_series_esta(variavel, est, cid)
+  } 
 
-  p <- grafico_series_estacionaria(df$date, df[[variavel]] / escala, titulo, "Data", "Novos Confirmados Diários", transf=transf)
+  p <- grafico_series_estacionaria(df$date, df[[variavel]] / escala, titulo, "Data", "Valor padronizado", transf=transf)
 
   return(p)
 }

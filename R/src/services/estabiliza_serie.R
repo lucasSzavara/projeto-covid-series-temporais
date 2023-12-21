@@ -10,7 +10,7 @@ remove_tendencia <- function(serie, invertible=F) {
   return(serie - estima_tendencia(serie))
 }
 
-padroniza_variancia <- function(serie, width=180, invertible=F) {
+padroniza_variancia <- function(serie, width=90, invertible=F) {
   # Recebe a série acumulada sem tendencia e retorna a série com variancia padronizada
   serie_diaria <- c(0, diff(serie))
   ysd <- rollapply(serie_diaria, width=width, FUN = sd, fill = NA)
@@ -31,7 +31,7 @@ remove_sazonalidade <- function(serie) {
 }
 
 
-estabiliza_serie <- function(serie, width=180, invertible=F) {
+estabiliza_serie <- function(serie, width=90, invertible=F) {
   # Recebe uma série com tendência, e a retorna estabilizada
   if(invertible) {
     tend <- serie %>% remove_tendencia(invertible=invertible)

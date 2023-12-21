@@ -104,12 +104,12 @@ titulo_series_res <- function(variavel, est, cid) {
   titulo <- ""
   
   if (variavel == "confirmed") {
-    aux <- paste("Residuo da tendência para casos confirmados")
+    aux <- paste("Residuo da tendência padronizado para casos confirmados")
   } else {
     if (variavel == "deaths") {
-      aux <- paste("Residuo da tendência para número de mortos")
+      aux <- paste("Residuo da tendência padronizado para número de mortos")
     } else {
-      aux <- paste("Residuo da tendência para doses administradas/10000")
+      aux <- paste("Residuo da tendência padronizado para doses administradas/10000")
     }
   }
   
