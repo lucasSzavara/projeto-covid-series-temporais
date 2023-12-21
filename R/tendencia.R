@@ -119,6 +119,18 @@ estima_tendencia <- function(serie, params=F) {
   # Maximos e minimos das splines
   zeros  <- solve(poly, deriv=1)
   minimos_ <- zeros[predict(poly, zeros, deriv=2)>0]
+  
+  if (length(minimos_) < 2) {
+    fit <- drm(serie~t, fct=LL2.3())
+    
+    ipi <- t(as.data.frame(fit$coefficients))
+    colnames(ipi) <- paste(substr(colnames(ipi),1,1), 1, sep='')
+    if (params) {
+      return(list(tendencia=predict(fit),
+                  params=ipi['fit$coefficients',]))
+    }
+    return(predict(fit))
+  }
   minimos <- c()
   for (i in 1:(length(minimos_) - 1)) {
     if(minimos_[i+1] - minimos_[i] > 90) {
@@ -127,9 +139,20 @@ estima_tendencia <- function(serie, params=F) {
   }
   
   N <- length(minimos)
+  t <- 1:length(serie)
+  if (N == 0) {
+    fit <- drm(serie~t, fct=LL2.3())
+    
+    ipi <- t(as.data.frame(fit$coefficients))
+    colnames(ipi) <- paste(substr(colnames(ipi),1,1), 1, sep='')
+    if (params) {
+      return(list(tendencia=predict(fit),
+                  params=ipi['fit$coefficients',]))
+    }
+    return(predict(fit))
+  }
   factors <- sapply(1:N, FUN=function(i){paste('I(d',i,'/(1+exp(b',i,'*(log(x)-e',i,'))))', sep='')})
   model_formula <- reformulate(termlabels = factors, response = 'y')
-  t <- 1:length(serie)
   ip <- c()
   for (i in 1:N) {
     if(i == N) {

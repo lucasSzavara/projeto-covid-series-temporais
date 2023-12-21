@@ -1,6 +1,10 @@
 source("./src/services/estabiliza_serie.R")
 
-grafico_modelo <- function(serie, datas, tipo_modelo, titulo_grafico, eixo_x, eixo_y, w=90) {
+grafico_modelo <- function(serie, datas, tipo_modelo, titulo_grafico, eixo_x, eixo_y, width=90) {
+  w <- width
+  if (length(serie) < w) {
+    w <- 1
+  }
   serie_padronizada <- estabiliza_serie(serie, width=w)
   dados = tsibble(
     data = datas[w:length(datas)],
@@ -55,7 +59,11 @@ render_grafico_modelo <- function(input) {
 }
 
 
-grafico_residuo <- function(serie, datas, tipo_modelo, w=90) {
+grafico_residuo <- function(serie, datas, tipo_modelo, width=90) {
+  w <- width
+  if (length(serie) < w) {
+    w <- 1
+  }
   serie_padronizada <- estabiliza_serie(serie, width=w)
   dados = tsibble(
     data = datas[w:length(datas)],
@@ -96,7 +104,11 @@ render_grafico_residuo <- function(input) {
 }
 
 
-grafico_modelo_inv_transf <- function(series, datas, tipo_modelo, titulo_grafico, eixo_x, eixo_y, w=90){
+grafico_modelo_inv_transf <- function(series, datas, tipo_modelo, titulo_grafico, eixo_x, eixo_y, width=90) {
+  w <- width
+  if (length(series) < w) {
+    w <- 1
+  }
   serie_padronizada <- estabiliza_serie(series, width=w, invertible=T)
   n <- length(series)
   serie <- serie_padronizada$serie
@@ -174,10 +186,10 @@ render_grafico_modelo_inv_transf <- function(input) {
   return(grafico_modelo_inv_transf(df[[variavel]] / escala, df$date, tipo_modelo, 'Valor real e previsões', "Data", "Modelo para a série"))
 }
 
+# source('./tendencia.R')
+# df <- carregar_dados('', '', c('2020-02-01', '2020-04-01'), 'deaths')
 # 
-# df <- carregar_dados('', '', c('2020-01-01', '2023-06-01'), 'deaths')
-# 
-# w <- 90
+# w <- 1
 # serie_padronizada <- estabiliza_serie(df$deaths, width=w, invertible=T)
 # dados = tsibble(
 #   data = df$date[w:length(df$date)],
@@ -231,3 +243,4 @@ render_grafico_modelo_inv_transf <- function(input) {
 #   theme(
 #     strip.background = element_rect(fill='lightgray', colour='lightgray')
 #   )
+

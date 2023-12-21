@@ -8,12 +8,17 @@ grafico_PACF <- function(df, variavel, escala, titulo_grafico, eixo_x, eixo_y, t
   df <- df %>%
     mutate(!!variavel := df[[variavel]] / escala)
   
+  w <- 90
+  if (length(df[[variavel]]) < 90) {
+    w<-1
+  }
+  
   # Estabilizar a série (remover tendência, sazonalidade, etc.)
-  dados <- estabiliza_serie(df[[variavel]])
+  dados <- estabiliza_serie(df[[variavel]], width=w)
   
   # Criar um objeto tsibble com as datas ajustadas
   dados = tsibble(
-    data = as.Date(df$date[90:nrow(df)]),
+    data = as.Date(df$date[w:nrow(df)]),
     y = dados,
     index = data
   )

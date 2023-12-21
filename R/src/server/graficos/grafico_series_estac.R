@@ -7,16 +7,24 @@ grafico_series_estacionaria <- function(datas, series, titulo_grafico, eixo_x, e
   
   # Remover tendência e padronizar variância
   if (transf == 1) {
+    w <- 90
+    if (length(series) < 90) {
+      w<-1
+    }
     series <- remove_tendencia(series)
-    series <- padroniza_variancia(series)
+    series <- padroniza_variancia(series, width = w)
   }
   
   # Estabilizar a série
   if (transf == 2) {
-    series <- estabiliza_serie(series)
+    w <- 90
+    if (length(series) < 90) {
+      w<-1
+    }
+    series <- estabiliza_serie(series, width=w)
   }
   
-  x <- datas[97:length(datas)]
+  x <- datas[(w+7):length(datas)]
   y <- series[8:length(series)]
   
   p <- ggplot(data.frame(x = x, y = y), aes(x = x, y = y)) +
