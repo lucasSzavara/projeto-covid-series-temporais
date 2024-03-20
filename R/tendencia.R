@@ -1,3 +1,5 @@
+library(drc)
+
 
 CubicInterpSplineAsPiecePoly <- function (x, y, method = c("fmm", "natural", "periodic", "hyman")) {
   ## method validation
@@ -107,73 +109,96 @@ solve.PiecePoly <- function (a, b = 0, deriv = 0L, ...) {
   unlist(xr)
 }
 
-estima_tendencia <- function(serie, params=F) {
-  # print(serie)
+encontra_minimos <- function(serie, df=50) {
   serie[is.na(serie)] <- 0
   # cálculo da série diária
   y <- c(1, diff(serie))
   
   # Cálculo das splines cúbicas
-  spline_fit <- smooth.spline(y, df=40)
+  spline_fit <- smooth.spline(y, nknots=40)
   poly <- SmoothSplineAsPiecePoly(spline_fit)
   # Maximos e minimos das splines
   zeros  <- solve(poly, deriv=1)
   minimos_ <- zeros[predict(poly, zeros, deriv=2)>0]
-  
-  if (length(minimos_) < 2) {
-    fit <- drm(serie~t, fct=LL2.3())
-    
-    ipi <- t(as.data.frame(fit$coefficients))
-    colnames(ipi) <- paste(substr(colnames(ipi),1,1), 1, sep='')
-    if (params) {
-      return(list(tendencia=predict(fit),
-                  params=ipi['fit$coefficients',]))
-    }
-    return(predict(fit))
-  }
-  minimos <- c()
+  minimos <- c(1)
   for (i in 1:(length(minimos_) - 1)) {
-    if(minimos_[i+1] - minimos_[i] > 90) {
+    if(minimos_[i+1] - minimos_[i] > 100) {
       minimos <- c(minimos, minimos_[i])
     }
   }
   
-  N <- length(minimos)
-  t <- 1:length(serie)
-  if (N == 0) {
-    fit <- drm(serie~t, fct=LL2.3())
-    
-    ipi <- t(as.data.frame(fit$coefficients))
-    colnames(ipi) <- paste(substr(colnames(ipi),1,1), 1, sep='')
-    if (params) {
-      return(list(tendencia=predict(fit),
-                  params=ipi['fit$coefficients',]))
-    }
-    return(predict(fit))
-  }
-  factors <- sapply(1:N, FUN=function(i){paste('I(d',i,'/(1+exp(b',i,'*(log(x)-e',i,'))))', sep='')})
-  model_formula <- reformulate(termlabels = factors, response = 'y')
+  return(minimos)
+}
+
+chutes_iniciais <- function(serie, N, minimos) {
+  print(minimos)
   ip <- c()
   for (i in 1:N) {
     if(i == N) {
+      # pode pegar só o fim N = 1
       yi <- serie[as.integer(minimos[i]):length(serie)] - serie[as.integer(minimos[i])-1]
       ti <- as.integer(minimos[i]):length(serie)
     } else {
-      yi <- serie[as.integer(minimos[i]):as.integer(minimos[i+1]+1)]- serie[as.integer(minimos[i])-1]
+      valor_inicial <- 0
+      if (minimos[i] != 1) {
+        valor_inicial <- serie[as.integer(minimos[i])-1]
+      }
+      yi <- serie[as.integer(minimos[i]):as.integer(minimos[i+1]+1)]- valor_inicial
       ti <- as.integer(minimos[i]):as.integer(minimos[i+1]+1)
     }
-    modeloi <- drm(yi~ti, fct=LL2.3())
-    ipi <- t(as.data.frame(modeloi$coefficients))
+    modeloi <- drm(yi~ti, fct=LL.3())
+    ipi <- t(as.data.frame(getInitial(modeloi)))
     colnames(ipi) <- paste(substr(colnames(ipi),1,1), i, sep='')
     ip <- cbind(ip, ipi)
   }
-  dados <- data.frame(y=serie, x=t)
+  return(ip)
+}
+
+ajusta_modelo <- function(serie, N, minimos) {
+  tempo <- 1:length(serie)
+  if (N == 0) {
+    fit <- drm(serie~tempo, fct=LL.3())
+    return(fit)
+  }
+  factors <- sapply(1:N, FUN=function(i){paste('I(d',i,'/(1+exp(b',i,'*(log(x)-log(e',i,')))))', sep='')})
+  model_formula <- reformulate(termlabels = factors, response = 'y')
+  ip <- chutes_iniciais(serie, N, minimos)
+  dados <- data.frame(y=serie, x=tempo)
   ctrl <- nls.control(maxiter = 500, warnOnly=T)
   
   fit <- nls(model_formula, dados, start=ip[1,], control = ctrl, algorithm='port')
+  return(fit)
+}
+
+estima_tendencia <- function(serie, params=F, df=50) {
+  # print(serie)
+  minimos <- encontra_minimos(serie, df=df)
+  t <- 1:length(serie)
+  # if (N == 0) {
+  #   fit <- drm(serie~t, fct=LL2.3())
+  #   
+  #   ipi <- t(as.data.frame(fit$coefficients))
+  #   colnames(ipi) <- paste(substr(colnames(ipi),1,1), 1, sep='')
+  #   if (params) {
+  #     return(list(tendencia=predict(fit),
+  #                 params=ipi['fit$coefficients',]))
+  #   }
+  #   return(predict(fit))
+  # }
+  fit <- ajusta_modelo(serie, length(minimos), minimos)
   if (params) {
+    # Como manter estavel para quando ajusto só pelo drm e quando ajusto pelo nls??
+    if (length(minimos) > 0) {
+      chute_inicial <- chutes_iniciais(serie, length(minimos), minimos)
+      return(list(tendencia=predict(fit),
+                  params=summary(fit)$parameters[,'Estimate'],
+                  chutes=chute_inicial))
+    }
+    ipi <- t(as.data.frame(fit$coefficients))
+    colnames(ipi) <- paste(substr(colnames(ipi),1,1), 1, sep='')
     return(list(tendencia=predict(fit),
-                params=summary(fit)$parameters[,'Estimate']))
+                params=ipi['fit$coefficients',],
+                chutes=ipi['fit$coefficients',]))
   }
   return(predict(fit))
 }
@@ -186,7 +211,7 @@ calcula_tend <- function(params, t) {
     d <- params[paste('d',i,sep='')]
     b <- params[paste('b',i,sep='')]
     e <- params[paste('e',i,sep='')]
-    result$n <- result$n + (d / (1+exp(b*(log(t)-e))))
+    result$n <- result$n + (d / (1+exp(b*(log(t)-log(e)))))
   }
   return(result)
 }
