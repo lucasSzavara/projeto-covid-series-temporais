@@ -115,15 +115,17 @@ encontra_minimos <- function(serie, df=50) {
   y <- c(1, diff(serie))
   
   # Cálculo das splines cúbicas
-  spline_fit <- smooth.spline(y, nknots=40)
+  spline_fit <- smooth.spline(y, nknots=df)
   poly <- SmoothSplineAsPiecePoly(spline_fit)
   # Maximos e minimos das splines
   zeros  <- solve(poly, deriv=1)
   minimos_ <- zeros[predict(poly, zeros, deriv=2)>0]
   minimos <- c(1)
-  for (i in 1:(length(minimos_) - 1)) {
-    if(minimos_[i+1] - minimos_[i] > 100) {
-      minimos <- c(minimos, minimos_[i])
+  if (length(minimos_) > 0) {
+    for (i in 1:(length(minimos_) - 1)) {
+      if(minimos_[i+1] - minimos_[i] > 100) {
+        minimos <- c(minimos, minimos_[i])
+      }
     }
   }
   
@@ -131,10 +133,12 @@ encontra_minimos <- function(serie, df=50) {
 }
 
 chutes_iniciais <- function(serie, N, minimos) {
-  print(minimos)
   ip <- c()
   for (i in 1:N) {
-    if(i == N) {
+    if (N == 1) {
+      yi <- serie
+      ti <- 1:length(serie)
+    } else if(i == N) {
       # pode pegar só o fim N = 1
       yi <- serie[as.integer(minimos[i]):length(serie)] - serie[as.integer(minimos[i])-1]
       ti <- as.integer(minimos[i]):length(serie)
@@ -154,7 +158,7 @@ chutes_iniciais <- function(serie, N, minimos) {
   return(ip)
 }
 
-ajusta_modelo <- function(serie, N, minimos) {
+ajusta_modelo <- function(serie, N, chutes) {
   tempo <- 1:length(serie)
   if (N == 0) {
     fit <- drm(serie~tempo, fct=LL.3())
@@ -162,11 +166,9 @@ ajusta_modelo <- function(serie, N, minimos) {
   }
   factors <- sapply(1:N, FUN=function(i){paste('I(d',i,'/(1+exp(b',i,'*(log(x)-log(e',i,')))))', sep='')})
   model_formula <- reformulate(termlabels = factors, response = 'y')
-  ip <- chutes_iniciais(serie, N, minimos)
   dados <- data.frame(y=serie, x=tempo)
   ctrl <- nls.control(maxiter = 500, warnOnly=T)
-  
-  fit <- nls(model_formula, dados, start=ip[1,], control = ctrl, algorithm='port')
+  fit <- nls(model_formula, dados, start=chutes, control = ctrl, algorithm='port', model=FALSE)
   return(fit)
 }
 
@@ -185,7 +187,8 @@ estima_tendencia <- function(serie, params=F, df=50) {
   #   }
   #   return(predict(fit))
   # }
-  fit <- ajusta_modelo(serie, length(minimos), minimos)
+  
+  fit <- ajusta_modelo(serie, length(minimos), chutes_iniciais(serie, length(minimos), minimos)[1,])
   if (params) {
     # Como manter estavel para quando ajusto só pelo drm e quando ajusto pelo nls??
     if (length(minimos) > 0) {

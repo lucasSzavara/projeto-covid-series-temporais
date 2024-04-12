@@ -31,11 +31,11 @@ estima_sazonalidade <- function(serie, datas) {
   # Pega uma série sem tendência, e modela sua sazonalidade. Para os dados
   # de covid, temos um melhor resultado ao ajustar a série diferenciada dos dados
   # menos a tendencia ajustada (diff(serie-tendencia))
-
+  # usar variaveis dummy
   df <- data.frame(serie, data=datas)
   modelo_sazonalidade <- model(
     df %>% as_tsibble(),
-    TSLM(serie ~ fourier(K = 3))
+    TSLM(serie ~ season(K = 3))
   )
   return(modelo_sazonalidade)
 }
