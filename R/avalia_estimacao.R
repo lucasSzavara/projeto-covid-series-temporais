@@ -5,6 +5,7 @@ library(drc)
 library('COVID19')
 library(ggplot2)
 library(zoo)
+library(psych)
 
 #------------------------------------------------------------
 
@@ -36,65 +37,74 @@ estimacao <- function(y, datas, width=w, tol=1e-8, max_iter=500) {
   # saz <- (saz %>%
   #           fitted())$.fitted
   saz <- c()
-  for (i in 1:7){
-    saz <- c(saz,mean((diff(y) / diff(fit_tend))[c(rep(F, i-1), T, rep(F, 7-i))]))
+  termos <- c()
+  # df <- data.frame(y=y, tend=fit_tend, dia=dados$date)
+  # df$resp <- c(1, log(diff(df$y)/diff(df$tend)))
+  # df[is.infinite(df$resp), 'resp'] = 0
+  # df$dia_semana <- weekdays(as.Date(df$dia))
+  # mod <- lm(resp ~ dia_semana - 1, data=df)
+  # df$saz <- predict(mod)
+  for (i in 1:6){
+    dias <- (diff(y) / diff(fit_tend))[c(rep(F, i-1), T, rep(F, 7-i))]
+    saz_i <- geometric.mean(c(dias[dias > 0], rep(1, sum(dias == 0))))
+    saz <- c(saz, saz_i)
+    termos <- c(termos, saz_i*sum(diff(fit_tend)[c(rep(F, i-1), T, rep(F, 7-i))]))
   }
-  saz <- saz + (7-sum(saz))/7
-  saz <- (rep_len(saz, length(y) - 1))
-  if (sum(saz < 0) > 0) {
-    saz <- saz + abs(min(saz))
-  }
-  p <- c(params_tend[[1]], sd, saz[1:7])
-  for (i in 1:max_iter) {
-    new_result = ajusta_modelo(cumsum(c(1, diff(y) / saz)), N, params_tend) # estima_tendencia(cumsum(c(1, diff(y) / saz)), params=T)
-    fit_tend_new <- predict(new_result) #$tendencia
-    # params_new <- list(new_result$params)
-    params_new = summary(new_result)$parameters[,'Estimate']
-    # var_ <- padroniza_variancia(y-fit_tend_new, width=width, invertible=T)
-    # y_ <- var_$serie
-    # sd_new <- var_$sd
-    
-    saz_new <- c()
-    for (i in 1:7){
-      saz_new <- c(saz,mean((diff(y) / diff(fit_tend_new))[c(rep(F, i-1), T, rep(F, 7-i))]))
-    }
-    saz_new <- saz_new + (7-sum(saz_new))/7
-    saz_new <- (rep_len(saz_new, length(y) - 1))
-    # saz_new <- (saz_new %>%
-    #           fitted())$.fitted
-    # if (sum(saz_new < 0) > 0) {
-    #   saz_new <- saz_new + abs(min(saz_new))
-    # }
-    p_new <- c(params_new[[1]], sd_new, saz_new[1:7])
-    if (length(p) == length(p_new) && sqrt(sum((p - p_new) ^ 2)) <= tol) {
-      params_tend <- params_new
-      saz <- saz_new
-      # sd <- sd_new
-      fit_tend <- fit_tend_new
-      p <- p_new
-      break
-      return (list(
-        param_tend=params_new,
-        # sd=sd_new,
-        saz=saz_new
-      ))
-    }
-    params_tend <- params_new
-    saz <- saz_new
-    # sd <- sd_new
-    fit_tend <- fit_tend_new
-    p <- p_new
-  }
-  g1 <- as.data.frame(cbind(ajuste=c(1, cumsum(diff(fit_tend)*saz)), serie=y, t=1:length(y))) %>%
-    ggplot() +
-    geom_line(aes(x=t, y=serie, color='Real'), linewidth=1) +
-    geom_line(aes(x=t, y=ajuste, color='Ajuste'), linewidth=0.5) +
-    ggtitle(paste('Gráfico acumulado para a cidade:', cidade)) +
-    ylab('Mortes por COVID-19')
-  g2 <- as.data.frame(cbind(ajuste=diff(fit_tend)*saz, serie=diff(y), t=(2):length(y))) %>%
+  saz <- c(saz, (max(fit_tend) - sum(termos))/sum(diff(fit_tend)[c(rep(F, 6), T)]))  # exp(-sum(log(saz))))
+  # saz <- saz + (7-sum(saz))/7
+  # saz <- (rep_len(saz, length(y) - 1))
+  # for (i in 1:max_iter) {
+  #   new_result = ajusta_modelo(cumsum(c(1, diff(y) / saz)), N, params_tend) # estima_tendencia(cumsum(c(1, diff(y) / saz)), params=T)
+  #   fit_tend_new <- predict(new_result) #$tendencia
+  #   # params_new <- list(new_result$params)
+  #   params_new = summary(new_result)$parameters[,'Estimate']
+  #   # var_ <- padroniza_variancia(y-fit_tend_new, width=width, invertible=T)
+  #   # y_ <- var_$serie
+  #   # sd_new <- var_$sd
+  #   
+  #   saz_new <- c()
+  #   for (i in 1:7){
+  #     saz_new <- c(saz_new,mean((diff(y) / diff(fit_tend_new))[c(rep(F, i-1), T, rep(F, 7-i))]))
+  #   }
+  #   saz_new <- saz_new + (7-sum(saz_new))/7
+  #   saz_new <- (rep_len(saz_new, length(y) - 1))
+  #   # saz_new <- (saz_new %>%
+  #   #           fitted())$.fitted
+  #   # if (sum(saz_new < 0) > 0) {
+  #   #   saz_new <- saz_new + abs(min(saz_new))
+  #   # }
+  #   p_new <- c(params_new[[1]], sd_new, saz_new[1:7])
+  #   if (length(p) == length(p_new) && sqrt(sum((p - p_new) ^ 2)) <= tol) {
+  #     params_tend <- params_new
+  #     saz <- saz_new
+  #     # sd <- sd_new
+  #     fit_tend <- fit_tend_new
+  #     p <- p_new
+  #     break
+  #     return (list(
+  #       param_tend=params_new,
+  #       # sd=sd_new,
+  #       saz=saz_new
+  #     ))
+  #   }
+  #   params_tend <- params_new
+  #   saz <- saz_new
+  #   # sd <- sd_new
+  #   fit_tend <- fit_tend_new
+  #   p <- p_new
+  # }
+  g1 <- as.data.frame(cbind(tendencia=fit_tend, ajuste=c(0, cumsum(diff(fit_tend)*saz)), serie=y, t=(1):length(y))) %>%
     ggplot() +
     geom_line(aes(x=t, y=serie, color='Real')) +
     geom_line(aes(x=t, y=ajuste, color='Ajuste'), linewidth=0.5) +
+    geom_line(aes(x=t, y=tendencia, color='Tendencia')) +
+    ggtitle(paste('Gráfico acumulado para a cidade:', cidade)) +
+    ylab('Mortes por COVID-19')
+  g2 <- as.data.frame(cbind(tendencia=diff(fit_tend), ajuste=diff(fit_tend)*saz, serie=diff(y), t=(2):length(y))) %>%
+    ggplot() +
+    geom_line(aes(x=t, y=serie, color='Real')) +
+    geom_line(aes(x=t, y=ajuste, color='Ajuste'), linewidth=0.5) +
+    geom_line(aes(x=t, y=tendencia, color='Tendencia')) +
     ggtitle(paste('Gráfico diário para a cidade:', cidade)) +
     ylab('Mortes por COVID-19')
   print(g1)
@@ -132,9 +142,9 @@ for (estado in estados) {
           }
           i <- i + 1
           # serie <- 'deaths'
-          # estado <- 'Paraná'
-          # cidade <- 'Campo Mourão'
-          # dados <- subset(x, administrative_area_level_2 == estado & administrative_area_level_3 == cidade)
+          # estado <- 'Acre'
+          # cidade <- 'Rio Branco'
+          dados <- subset(x, administrative_area_level_2 == estado & administrative_area_level_3 == cidade)
           dados <- corrige(dados, serie)
           y <- dados[[serie]]
           n <- length(y)
@@ -149,13 +159,16 @@ for (estado in estados) {
           fit_tend <- resultado$tendencia
           params_tend <- list(resultado$params)
           chutes <- list(resultado$chutes)
-          var_estabilizada <- padroniza_variancia(y-fit_tend, width=w, invertible=T)
-          y_ <- var_estabilizada$serie
-          sd <- var_estabilizada$sd
-          saz <- estima_sazonalidade(y_, dados$date[w:length(dados$date)])
-          saz <- (saz %>%
-                 fitted())['.fitted']
-          fit <- fit_tend[w:length(dados$date)] + saz * sd # * p
+          # var_estabilizada <- padroniza_variancia(y-fit_tend, width=w, invertible=T)
+          # y_ <- var_estabilizada$serie
+          # sd <- var_estabilizada$sd
+          saz <- c()
+          for (i in 1:7){
+            saz <- c(saz,mean((diff(y) / diff(fit_tend))[c(rep(F, i-1), T, rep(F, 7-i))]))
+          }
+          saz <- saz + (7-sum(saz))/7
+          saz <- (rep_len(saz, length(y) - 1))
+          fit <- c(1, cumsum(diff(fit_tend)*saz))
           eqm_t <-  sum((y - fit_tend)^2) / n
           epam_t <- sum(abs((y-fit_tend)/y)) / n
           elqm_t <- sum((log(y) - log(fit_tend))^2) / n
@@ -174,11 +187,11 @@ for (estado in estados) {
               eqm=eqm,
               epam=epam,
               elqm=elqm,
-              ajuste=as.list(fit),
+              ajuste=list(valores=fit),
               chutes=chutes
               )
         }, error=function(err) {
-          print(paste("MY_ERROR:  ",err))
+          print(paste("Erro:  ",err))
           cat(estado, cidade, serie, '\n')
           erros[nrow(erros) + 1,] <- c(estado, cidade, err)
         }
@@ -202,22 +215,15 @@ cidades_faltantes <- tibble(
 for (uf in unique(resultados$estado)) {
   cidades <- sort(unique(resultados[resultados$estado == uf,]$cidade))
   cat('\nEstado', uf, '\n Nº de cidades:', length(cidades), '\n')
+  pops <- subset(x, administrative_area_level_2 == uf) %>% group_by(administrative_area_level_2, administrative_area_level_3) %>%
+    summarise(pop = mean(population))
   cidades_tamanho <- list(
-    muito_pequenas=c(),
-    pequenas=c(),
-    medias=c(),
-    grandes=c(),
-    muito_grandes=c()
+    muito_pequenas=pops[pops$pop <= tamanhos[2],]$administrative_area_level_3,
+    pequenas=pops[pops$pop <= tamanhos[3] & pops$pop > tamanhos[2],]$administrative_area_level_3,
+    medias=pops[pops$pop <= tamanhos[4] & pops$pop > tamanhos[3],]$administrative_area_level_3,
+    grandes=pops[pops$pop <= tamanhos[5] & pops$pop > tamanhos[4],]$administrative_area_level_3,
+    muito_grandes=pops[pops$pop > tamanhos[5],]$administrative_area_level_3
   )
-  for (cidade in cidades) {
-    pop <- mean(subset(x, 
-                       administrative_area_level_2 == uf & administrative_area_level_3 == cidade)['population'][[1]])
-    for(j in 2:(length(tamanhos))) {
-      if(tamanhos[j - 1] <= pop && pop < tamanhos[j]){
-        cidades_tamanho[[j - 1]] <- append(cidades_tamanho[[j - 1]], cidade)
-      }
-    }
-  }
   i <- 1
   for(j in 1:length(nomes_tamanhos)) {
     pdf(paste('./graficos/', uf, '/', nomes_tamanhos[j], '.pdf', sep=''))
@@ -236,7 +242,7 @@ for (uf in unique(resultados$estado)) {
       dados <- subset(x, administrative_area_level_2 == uf & administrative_area_level_3 == cid)
       # dados <- dados[dados[['deaths']] != 0,]
       dados <- corrige(dados, 'deaths')
-      serie <- dados$deaths[w:length(dados$deaths)]
+      serie <- dados$deaths
       sub_resultados <- subset(resultados, estado==uf & cidade==cid)
       params <- sub_resultados$parametros[[1]]
       if (length(dim(sub_resultados$chutes[[1]])) == 0 ) {
@@ -244,9 +250,10 @@ for (uf in unique(resultados$estado)) {
       } else {
         chute_inicial <- sub_resultados$chutes[[1]][1,]
       }
-      ajuste_inicial <- calcula_tend(chute_inicial, w:(length(serie)+w-1))$n
-      ajuste <- sub_resultados$ajuste$.fitted
-      g1 <- as.data.frame(cbind(ajuste=ajuste, ajuste_inicial=ajuste_inicial, serie=serie, t=w:(length(serie)+w-1))) %>%
+      ajuste_inicial <- calcula_tend(chute_inicial, 1:(length(serie)))$n
+      ajuste <- sub_resultados$ajuste$valores
+      ajuste[1] <- 0
+      g1 <- as.data.frame(cbind(ajuste=ajuste, ajuste_inicial=ajuste_inicial, serie=serie, t=1:(length(serie)))) %>%
         ggplot() +
         geom_line(aes(x=t, y=serie, color='Real'), linewidth=1) +
         geom_line(aes(x=t, y=ajuste, color='Ajuste'), linewidth=0.5) +
@@ -255,7 +262,7 @@ for (uf in unique(resultados$estado)) {
         ylab('Mortes por COVID-19') +
         annotate('text', label=paste('Valores ajustados: \n', paste(names(params), round(params, 2), sep = ":", collapse = "\n")), x=length(serie) * 0.8, y=max(serie) * 0.5) +
         annotate('text', label=paste('Chutes Iniciais: \n', paste(names(chute_inicial), round(chute_inicial, 2), sep = ":", collapse = "\n")), x=length(serie) * 0.15, y=max(serie) * 0.7)
-      g2 <- as.data.frame(cbind(ajuste=diff(ajuste), ajuste_inicial=diff(ajuste_inicial), serie=diff(serie), t=(w+1):(length(serie)+w-1))) %>%
+      g2 <- as.data.frame(cbind(ajuste=diff(ajuste), ajuste_inicial=diff(ajuste_inicial), serie=diff(serie), t=(2):(length(serie)))) %>%
         ggplot() +
         geom_line(aes(x=t, y=serie, color='Real')) +
         geom_line(aes(x=t, y=ajuste, color='Ajuste'), linewidth=0.5) +
