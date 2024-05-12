@@ -6,6 +6,10 @@ library('COVID19')
 library(ggplot2)
 library(zoo)
 library(psych)
+library(nloptr)
+library(ggpubr)
+library(stats)
+
 
 #------------------------------------------------------------
 
@@ -13,103 +17,86 @@ library(psych)
 x <- covid19(country=c('Brazil'), level=3, verbose=F, vintage = "2023-09-30")
 
 
-w <- 90
-estimacao <- function(y, datas, width=w, tol=1e-8, max_iter=500) {
-  serie <- 'deaths'
-  estado <- 'São Paulo'
-  cidade <- 'São Paulo'
-  dados <- subset(x, administrative_area_level_2 == estado & administrative_area_level_3 == cidade)
-  dados <- corrige(dados, serie)
-  y <- dados[[serie]]
-  width <- 90
-  datas <- dados$date[(length(dados[[serie]])-length(y) + 2):length(dados$date)]
-  tol <- 1e-7
-  max_iter <- 500
-  resultado <- estima_tendencia(y,
-                                params=T)
-  fit_tend <- resultado$tendencia
-  params_tend <- resultado$params
-  N <- length(params_tend) / 3
-  # var_estabilizada <- padroniza_variancia(y-fit_tend, width=width, invertible=T)
-  # y_ <- var_estabilizada$serie
-  # sd <- var_estabilizada$sd
-  # saz <- estima_sazonalidade(ifelse(is.infinite(diff(y) / diff(fit_tend)), 1, diff(y) / diff(fit_tend)), datas)
-  # saz <- (saz %>%
-  #           fitted())$.fitted
+erro_sazonalidade <- function(sigma, t, z) {
+  eq <- 0
+  d <- c()
+  for (i in 1:7){
+    zi <- z[c(rep(F, i-1), T, rep(F, 7-i))]
+    eq <- eq + sum((zi/sigma[i] - 1) ^ 2)
+    d <- c(d, 2/sigma[i] * sum(zi*(sigma[i] - zi)))
+  }
+  return( list("objective"=eq,
+               "gradient"=d))
+}
+
+
+restricao <- function(sigma, t, z) {
+  S <- c()
+  jacs <- c()
+  for (i in 1:7){
+    S <- c(S, sigma[i]*sum(t[c(rep(F, i-1), T, rep(F, 7-i))]))
+    jacs <- c(jacs, sum(t[c(rep(F, i-1), T, rep(F, 7-i))]))
+  }
+  return(list("constraints"=sum(S) - sum(t),
+              "jacobian"=jacs))
+}
+
+sazonalidade_mg <- function(y, t) {
   saz <- c()
   termos <- c()
-  # df <- data.frame(y=y, tend=fit_tend, dia=dados$date)
-  # df$resp <- c(1, log(diff(df$y)/diff(df$tend)))
-  # df[is.infinite(df$resp), 'resp'] = 0
-  # df$dia_semana <- weekdays(as.Date(df$dia))
-  # mod <- lm(resp ~ dia_semana - 1, data=df)
-  # df$saz <- predict(mod)
   for (i in 1:6){
-    dias <- (diff(y) / diff(fit_tend))[c(rep(F, i-1), T, rep(F, 7-i))]
+    dias <- (y / t)[c(rep(F, i-1), T, rep(F, 7-i))]
     saz_i <- geometric.mean(c(dias[dias > 0], rep(1, sum(dias == 0))))
     saz <- c(saz, saz_i)
-    termos <- c(termos, saz_i*sum(diff(fit_tend)[c(rep(F, i-1), T, rep(F, 7-i))]))
+    termos <- c(termos, saz_i*sum(t[c(rep(F, i-1), T, rep(F, 7-i))]))
   }
-  saz <- c(saz, (max(fit_tend) - sum(termos))/sum(diff(fit_tend)[c(rep(F, 6), T)]))  # exp(-sum(log(saz))))
-  # saz <- saz + (7-sum(saz))/7
-  # saz <- (rep_len(saz, length(y) - 1))
-  # for (i in 1:max_iter) {
-  #   new_result = ajusta_modelo(cumsum(c(1, diff(y) / saz)), N, params_tend) # estima_tendencia(cumsum(c(1, diff(y) / saz)), params=T)
-  #   fit_tend_new <- predict(new_result) #$tendencia
-  #   # params_new <- list(new_result$params)
-  #   params_new = summary(new_result)$parameters[,'Estimate']
-  #   # var_ <- padroniza_variancia(y-fit_tend_new, width=width, invertible=T)
-  #   # y_ <- var_$serie
-  #   # sd_new <- var_$sd
-  #   
-  #   saz_new <- c()
-  #   for (i in 1:7){
-  #     saz_new <- c(saz_new,mean((diff(y) / diff(fit_tend_new))[c(rep(F, i-1), T, rep(F, 7-i))]))
-  #   }
-  #   saz_new <- saz_new + (7-sum(saz_new))/7
-  #   saz_new <- (rep_len(saz_new, length(y) - 1))
-  #   # saz_new <- (saz_new %>%
-  #   #           fitted())$.fitted
-  #   # if (sum(saz_new < 0) > 0) {
-  #   #   saz_new <- saz_new + abs(min(saz_new))
-  #   # }
-  #   p_new <- c(params_new[[1]], sd_new, saz_new[1:7])
-  #   if (length(p) == length(p_new) && sqrt(sum((p - p_new) ^ 2)) <= tol) {
-  #     params_tend <- params_new
-  #     saz <- saz_new
-  #     # sd <- sd_new
-  #     fit_tend <- fit_tend_new
-  #     p <- p_new
-  #     break
-  #     return (list(
-  #       param_tend=params_new,
-  #       # sd=sd_new,
-  #       saz=saz_new
-  #     ))
-  #   }
-  #   params_tend <- params_new
-  #   saz <- saz_new
-  #   # sd <- sd_new
-  #   fit_tend <- fit_tend_new
-  #   p <- p_new
-  # }
-  g1 <- as.data.frame(cbind(tendencia=fit_tend, ajuste=c(0, cumsum(diff(fit_tend)*saz)), serie=y, t=(1):length(y))) %>%
-    ggplot() +
-    geom_line(aes(x=t, y=serie, color='Real')) +
-    geom_line(aes(x=t, y=ajuste, color='Ajuste'), linewidth=0.5) +
-    geom_line(aes(x=t, y=tendencia, color='Tendencia')) +
-    ggtitle(paste('Gráfico acumulado para a cidade:', cidade)) +
-    ylab('Mortes por COVID-19')
-  g2 <- as.data.frame(cbind(tendencia=diff(fit_tend), ajuste=diff(fit_tend)*saz, serie=diff(y), t=(2):length(y))) %>%
-    ggplot() +
-    geom_line(aes(x=t, y=serie, color='Real')) +
-    geom_line(aes(x=t, y=ajuste, color='Ajuste'), linewidth=0.5) +
-    geom_line(aes(x=t, y=tendencia, color='Tendencia')) +
-    ggtitle(paste('Gráfico diário para a cidade:', cidade)) +
-    ylab('Mortes por COVID-19')
-  print(g1)
-  print(g2)
+  saz <- c(saz, (max(fit_tend) - sum(termos))/sum(t[c(rep(F, 6), T)]))
+  saz
 }
+
+
+sazonalidade_mq <- function(y, t, s0=c()) {
+  
+  if(length(s0) != 7) {
+    s0 <- c()
+    for (i in 1:7){
+      dias <- (y / t)[c(rep(F, i-1), T, rep(F, 7-i))]
+      saz_i <- geometric.mean(c(dias[dias > 0], rep(1, sum(dias == 0))))
+      s0 <- c(s0, saz_i)
+    }
+  }
+  res0 <- nloptr( 
+    x0=s0, 
+    eval_f=erro_sazonalidade, 
+    lb = rep(0, 7), 
+    eval_g_eq = restricao,
+    opts = list("algorithm" = "NLOPT_LD_AUGLAG",
+                "xtol_rel"=1.0e-8,
+                "print_level" = 0,
+                "local_opts"=list("algorithm"="NLOPT_LD_SLSQP",
+                                  "xtol_rel"=1.0e-5),
+                "maxeval"=5000),
+    t = t, 
+    z = y / t
+  )
+  saz <- res0$solution
+  saz
+}
+
+
+sazonalidade_mp <- function(y, t) {
+  saz <- c()
+  termos <- c()
+  for (i in 1:7){
+    ind <- c(rep(F, i-1), T, rep(F, 7-i))
+    dias <- (y / t)[ind]
+    saz_i <- weighted.mean(dias, t[ind])
+    saz <- c(saz, saz_i)
+    termos <- c(termos, saz_i*sum(t[ind]))
+  }
+  saz
+}
+
 
 locais <- read.csv('dados/estados_cidades.csv')
 series <- c('deaths') # c("confirmed","deaths","vaccines")
@@ -119,83 +106,81 @@ resultados <- tibble(
   cidade="",
   serie="",
   parametros=list(),
-  ajuste=list(),
+  tendencia=list(),
+  saz=list(),
   eqm=Inf,
-  epam=Inf,
-  elqm=Inf,
-  eqm_tendencia=Inf,
-  epam_tendencia=Inf,
-  elqm_tendencia=Inf,
-  chutes=list()
+  method="",
+  parametro=Inf,
+  obj=list(),
+  chute=list()
 )
 erros <- data.frame(estado=c(), cidade=c(), erro=c())
-for (estado in estados) {
+methods <- c('kriston', 'splines')
+meta_params <- data.frame(method=c(rep('kriston', 4), rep('splines', 4)),
+                          df=c(1:4 * 28, 2:5 * 10))
+# resultados <- subset(resultados, cidade!=cid)
+# estados <- 'São Paulo'
+for (estado in c('São Paulo')) {
   cidades <- sort(unique(locais[locais$estados == estado,]$cidades))
   cat('Estado', estado, '\n Nº de cidades:', length(cidades))
   i <- 1
   for (serie in series) {
     for (cidade in cidades) {
       dados <- subset(x, administrative_area_level_2 == estado & administrative_area_level_3 == cidade)
-      tryCatch({
-          if (i %% 50 == 0) {
+      dados <- corrige(dados, serie)
+      y <- dados[[serie]]
+      n <- length(y)
+      for (method in methods) {
+        params <- meta_params[meta_params$method==method,]$df
+        for (param in params) {
+          tryCatch({
+            if (i %% 50 == 0) {
               cat(i)
-          }
-          i <- i + 1
-          # serie <- 'deaths'
-          # estado <- 'Acre'
-          # cidade <- 'Rio Branco'
-          dados <- subset(x, administrative_area_level_2 == estado & administrative_area_level_3 == cidade)
-          dados <- corrige(dados, serie)
-          y <- dados[[serie]]
-          n <- length(y)
-          # source('./tendencia.R')
-          resultado <- estima_tendencia(y,
-                                        params=T, 
-                                        df=ifelse(sum(
-                                          dados$population > 500000
-                                          ) > 0, 
-                                          yes = 50, 
-                                          no=40))
-          fit_tend <- resultado$tendencia
-          params_tend <- list(resultado$params)
-          chutes <- list(resultado$chutes)
-          # var_estabilizada <- padroniza_variancia(y-fit_tend, width=w, invertible=T)
-          # y_ <- var_estabilizada$serie
-          # sd <- var_estabilizada$sd
-          saz <- c()
-          for (i in 1:7){
-            saz <- c(saz,mean((diff(y) / diff(fit_tend))[c(rep(F, i-1), T, rep(F, 7-i))]))
-          }
-          saz <- saz + (7-sum(saz))/7
-          saz <- (rep_len(saz, length(y) - 1))
-          fit <- c(1, cumsum(diff(fit_tend)*saz))
-          eqm_t <-  sum((y - fit_tend)^2) / n
-          epam_t <- sum(abs((y-fit_tend)/y)) / n
-          elqm_t <- sum((log(y) - log(fit_tend))^2) / n
-          eqm <-  sum((y[w:length(dados$date)] - fit)^2) / n
-          epam <- sum(abs((y[w:length(dados$date)]-fit)/y)) / n
-          elqm <- sum((log(y[w:length(dados$date)]) - log(fit))^2) / n
-          resultados <- resultados %>% 
-            add_row(
-              estado=estado,
-              cidade=cidade,
-              serie='deaths',
-              parametros=params_tend,
-              eqm_tendencia=eqm_t,
-              epam_tendencia=epam_t,
-              elqm_tendencia=elqm_t,
-              eqm=eqm,
-              epam=epam,
-              elqm=elqm,
-              ajuste=list(valores=fit),
-              chutes=chutes
+            }
+            i <- i + 1
+            # serie <- 'deaths'
+            # estado <- 'São Paulo'
+            # cidade <- 'Santo André'
+            # dados <- subset(x, administrative_area_level_2 == estado & administrative_area_level_3 == cidade)
+            # dados <- corrige(dados, serie)
+            # y <- dados[[serie]]
+            # n <- length(y)
+            # source('./tendencia.R')
+            print(param)
+            print(method)
+            resultado <- estima_tendencia(y,
+                                          params=T, 
+                                          param=param, 
+                                          wcmethod=method, dates = dados$date[2:n])
+            fit_tend <- resultado$tendencia
+            params_tend <- list(resultado$params)
+            chutes <- list(resultado$chutes)
+            t <- diff(fit_tend)
+            y_ <- diff(y)
+            
+            saz <- sazonalidade_mp(y_, t)
+            eqm <-  sum((y_ - t*saz)^2) / n
+            resultados <- resultados %>% 
+              add_row(
+                estado=estado,
+                cidade=cidade,
+                serie='deaths',
+                parametros=params_tend,
+                chute=chutes,
+                eqm=eqm,
+                saz=list(saz),
+                tendencia=list(t),
+                method=method,
+                parametro=param,
+                obj=list(resultado$obj),
               )
-        }, error=function(err) {
-          print(paste("Erro:  ",err))
-          cat(estado, cidade, serie, '\n')
-          erros[nrow(erros) + 1,] <- c(estado, cidade, err)
+            }, error=function(err) {
+              print(paste("Erro:  ",err))
+              cat(estado, cidade, serie, '\n')
+              erros[nrow(erros) + 1,] <- c(estado, cidade, err)
+          })
         }
-      )
+      }
     }
   }
 }
@@ -226,7 +211,9 @@ for (uf in unique(resultados$estado)) {
   )
   i <- 1
   for(j in 1:length(nomes_tamanhos)) {
-    pdf(paste('./graficos/', uf, '/', nomes_tamanhos[j], '.pdf', sep=''))
+    dir.create(file.path('./graficos_metodos_ondas/', uf), showWarnings = FALSE)
+    pdf(paste('./graficos_metodos_ondas/', uf, '/', nomes_tamanhos[j], '.pdf', sep=''),
+        width=18, height=12)
     for(cid in cidades_tamanho[[j]]) {
       if (i %% 50 == 0) {
         cat(i, '\n')
@@ -243,36 +230,212 @@ for (uf in unique(resultados$estado)) {
       # dados <- dados[dados[['deaths']] != 0,]
       dados <- corrige(dados, 'deaths')
       serie <- dados$deaths
+      n <- length(serie)
       sub_resultados <- subset(resultados, estado==uf & cidade==cid)
-      params <- sub_resultados$parametros[[1]]
-      if (length(dim(sub_resultados$chutes[[1]])) == 0 ) {
-        chute_inicial <- sub_resultados$chutes[[1]]
-      } else {
-        chute_inicial <- sub_resultados$chutes[[1]][1,]
+      sub_res_kris <- subset(sub_resultados, method=='kriston')
+      sub_res_spline <- subset(sub_resultados, method=='splines')
+      graficos_kris <- list()
+      graficos_spline <- list()
+      if (nrow(sub_res_kris) != 0){
+        for (m in 1:nrow(sub_res_kris)) {
+          linha <- sub_res_kris[m,]
+          tendencia <- linha$tendencia[[1]]
+          if (length(dim(linha$chute[[1]])) == 0 ) {
+            chute_inicial <- linha$chute[[1]]
+          } else {
+            chute_inicial <- linha$chute[[1]][1,]
+          }
+          ajuste_inicial <- calcula_tend(chute_inicial, 1:(length(serie)))$n
+          saz <- linha$saz[[1]]
+          eqm <- linha$eqm
+          
+          df <- as.data.frame(cbind(
+            chute=diff(ajuste_inicial),
+            saz=tendencia*saz,
+            serie=diff(serie),
+            t=2:n
+          ))
+          wave_start <- which(linha$obj[[1]]$BF > 3)
+          unique_waves <- c(wave_start[1])
+          for (i in 2:length(wave_start)) {
+            if(wave_start[i] - wave_start[i-1] > 1) {
+              unique_waves <- c(unique_waves, wave_start[i])
+            }
+          }
+          unified_waves <- c(unique_waves[1])
+          for (i in 2:length(unique_waves)) {
+            bfs <- linha$obj[[1]]$BF[unified_waves[length(unified_waves)]:unique_waves[i]]
+            if (sum(is.na(bfs)) > 0 || sum(bfs < 1) > 0) {
+              unified_waves <- c(unified_waves, unique_waves[i])
+            }
+          }
+          
+          unified_waves <- unified_waves - linha$parametro + 1
+          plot.cases <- ggplot(linha$obj[[1]], aes(date, cases)) +
+            geom_line(aes(y=df$serie, color='Real'), size=0.2) +
+            geom_line(aes(y=df$saz, color='Ajuste'), linewidth=0.25) +
+            geom_line(aes(y=df$chute, color='Chute inicial'), linewidth=0.5) +
+            annotate('text', label=paste('EQM: ', round(eqm, 5)), x=as.Date('2020-07-01'), y=max(diff(serie))*0.8) +
+            scale_x_date(breaks='3 month') +
+            scale_y_continuous(name="Novas mortes",
+                               limits=c(0, NA)) +
+            theme(
+              axis.title.x = element_blank(),
+              axis.text.x = element_blank(),
+              axis.ticks.x=element_blank(),
+              legend.position = "top") +
+              scale_color_manual(values=c('#5555EE', '#FFA0A0', '#363636'))
+          linha$obj[[1]]$date <- as.Date(substr(linha$obj[[1]]$date, 1, 10))
+          plot_BF <- ggplot(linha$obj[[1]], aes(date, BF))+
+            geom_hline(yintercept = c(1/3, 3), linetype=3, col="gray30") +
+            geom_hline(yintercept = c(1/20, 20), linetype=2, col="gray30") +
+            geom_hline(yintercept = c(1/150, 1, 150), linetype=1, col="gray30") +
+            geom_vline(xintercept = linha$obj[[1]]$date[unified_waves], linetype=1, col='blue') +
+            geom_line(aes(date, BF), col="black", size=1) +
+            scale_x_date(name="Date (month/year)",
+                         breaks='3 month',
+                         date_labels = "%b/%y") +
+            scale_y_continuous(name=paste(linha$parametro, 'Dias'),
+                               trans="log10",
+                               breaks=10^seq(-3, 3, 1),
+                               lim=c(1/(10^3), 10^3),
+                               labels=c(0.001, 0.01, 0.1, 1, 10, 100, 1000))
+          g1 <- ggarrange(plot.cases, plot_BF, ncol=1)
+          graficos_kris[[m]] <- g1
+        }
       }
-      ajuste_inicial <- calcula_tend(chute_inicial, 1:(length(serie)))$n
-      ajuste <- sub_resultados$ajuste$valores
-      ajuste[1] <- 0
-      g1 <- as.data.frame(cbind(ajuste=ajuste, ajuste_inicial=ajuste_inicial, serie=serie, t=1:(length(serie)))) %>%
-        ggplot() +
-        geom_line(aes(x=t, y=serie, color='Real'), linewidth=1) +
-        geom_line(aes(x=t, y=ajuste, color='Ajuste'), linewidth=0.5) +
-        geom_line(aes(x=t, y=ajuste_inicial, color='Ajuste Inicial'), linewidth=0.5) +
-        ggtitle(paste('Gráfico acumulado para a cidade:', cid)) +
-        ylab('Mortes por COVID-19') +
-        annotate('text', label=paste('Valores ajustados: \n', paste(names(params), round(params, 2), sep = ":", collapse = "\n")), x=length(serie) * 0.8, y=max(serie) * 0.5) +
-        annotate('text', label=paste('Chutes Iniciais: \n', paste(names(chute_inicial), round(chute_inicial, 2), sep = ":", collapse = "\n")), x=length(serie) * 0.15, y=max(serie) * 0.7)
-      g2 <- as.data.frame(cbind(ajuste=diff(ajuste), ajuste_inicial=diff(ajuste_inicial), serie=diff(serie), t=(2):(length(serie)))) %>%
-        ggplot() +
-        geom_line(aes(x=t, y=serie, color='Real')) +
-        geom_line(aes(x=t, y=ajuste, color='Ajuste'), linewidth=0.5) +
-        geom_line(aes(x=t, y=ajuste_inicial, color='Ajuste Inicial'), linewidth=0.5) +
-        ggtitle(paste('Gráfico diário para a cidade:', cid)) +
-        ylab('Mortes por COVID-19')
-      print(g1)
-      print(g2)
+      for (m in 1:nrow(sub_res_spline)) {
+        linha <- sub_res_spline[m,]
+        tendencia <- linha$tendencia[[1]]
+        if (length(dim(linha$chute[[1]])) == 0 ) {
+          chute_inicial <- linha$chute[[1]]
+        } else {
+          chute_inicial <- linha$chute[[1]][1,]
+        }
+        ajuste_inicial <- calcula_tend(chute_inicial, 1:(length(serie)))$n
+        saz <- linha$saz[[1]]
+        eqm <- linha$eqm
+        
+        df <- as.data.frame(cbind(
+          chute=diff(ajuste_inicial),
+          saz=tendencia*saz,
+          serie=diff(serie),
+          t=2:n
+        ))
+        
+        plot.cases <- ggplot(df, aes(t, serie)) +
+          geom_line(aes(color='Real'), size=0.2) +
+          geom_line(aes(y=saz, color='Ajuste'), linewidth=0.25) +
+          geom_line(aes(y=chute, color='Chute inicial'), linewidth=0.5) +
+          annotate('text', label=paste('EQM: ', round(eqm, 5)), x=100, y=max(diff(serie))*0.8) +
+          scale_y_continuous(name="Novas mortes",
+                             limits=c(0, NA)) +
+          theme(
+            axis.title.x = element_blank(),
+            axis.text.x = element_blank(),
+            axis.ticks.x=element_blank(),
+            legend.position = 'none') +
+          scale_color_manual(values=c('#5555EE', '#FFA0A0', '#363636'))
+        
+        spline_fit <- linha$obj[[1]]
+        poly <- SmoothSplineAsPiecePoly(spline_fit)
+        # Maximos e minimos das splines
+        zeros  <- solve(poly, deriv=1)
+        minimos_ <- zeros[predict(poly, zeros, deriv=2)>0]
+        minimos <- c(1)
+        if (length(minimos_) > 0) {
+          for (i in 1:(length(minimos_) - 1)) {
+            if(minimos_[i+1] - minimos_[i] > 100) {
+              minimos <- c(minimos, minimos_[i])
+            }
+          }
+        }
+        
+        plot_BF <- ggplot(data.frame(x=spline_fit$x, y=spline_fit$y), aes(x, y))+
+          geom_vline(xintercept = minimos, linetype=1, col='blue') +
+          geom_line(col="black", size=1) +
+          scale_x_continuous(name=paste(linha$parametro, 'knots'))
+        g1 <- ggarrange(plot.cases, plot_BF, ncol=1)
+        graficos_spline[[m]] <- g1
+      }
+      # g1 <- list()
+      # for (k in 1:3) {
+      #   g1[k] <- df %>%
+      #     ggplot() +
+      #     geom_line(aes(x=t, y=serie, color='Real'), linewidth=1) +
+      #     geom_line(aes(x=t, y=tendencia, color='Tendencia'), linewidth=0.5) +
+      #     geom_line(aes(x=t, y=.data[[metodos_sazonalidade[k]]], color='Ajuste'), linewidth=0.5)
+      #     # ggtitle(paste('Gráfico acumulado para a cidade:', cid)) +
+      #     # ylab('Mortes por COVID-19')
+      # }
+      # g1 <- df %>%
+      #       ggplot() +
+      #       geom_line(aes(x=t, y=serie, color='Real'), linewidth=1) +
+      #   geom_line(aes(x=t, y=.data[[metodos_sazonalidade[1]]], color='Ajuste'), linewidth=0.5) +
+      #       geom_line(aes(x=t, y=tendencia, color='Tendencia'), linewidth=0.5, linetype = "dashed")  +
+      #   scale_color_manual(values=c('#5555EE', '#363636', '#FFA0A0')) 
+      # g2 <- df %>%
+      #   ggplot() +
+      #   geom_line(aes(x=t, y=serie, color='Real'), linewidth=1) +
+      #   geom_line(aes(x=t, y=.data[[metodos_sazonalidade[2]]], color='Ajuste'), linewidth=0.5) +
+      #   geom_line(aes(x=t, y=tendencia, color='Tendencia'), linewidth=0.5, linetype = "dashed")  +
+      #   scale_color_manual(values=c('#5555EE', '#363636', '#FFA0A0'))
+      # g3 <- df %>%
+      #   ggplot() +
+      #   geom_line(aes(x=t, y=serie, color='Real'), linewidth=1) +
+      #   geom_line(aes(x=t, y=.data[[metodos_sazonalidade[3]]], color='Ajuste'), linewidth=0.5) +
+      #   geom_line(aes(x=t, y=tendencia, color='Tendencia'), linewidth=0.5, linetype = "dashed")  +
+      #   scale_color_manual(values=c('#5555EE', '#363636', '#FFA0A0'))
+      # 
+      # g4 <- df_ %>%
+      #   ggplot() +
+      #   geom_line(aes(x=t, y=serie, color='Real'), size=0.2) +
+      #   geom_line(aes(x=t, y=.data[[metodos_sazonalidade[1]]], color='Ajuste'), linewidth=0.25) +
+      #   geom_line(aes(x=t, y=tendencia, color='Tendencia'), linewidth=0.5, linetype = "dashed") +
+      #   annotate('text', label=paste('EQM: ', round(eqm_mg, 5)), x=100, y=max(diff(serie))*0.8) +
+      #   ylab('Mortes por COVID-19')  +
+      #   scale_color_manual(values=c('#5555EE', '#363636', '#FFA0A0'))
+      # 
+      # g5 <- df_ %>%
+      #   ggplot() +
+      #   geom_line(aes(x=t, y=serie, color='Real'), size=0.2) +
+      #   geom_line(aes(x=t, y=.data[[metodos_sazonalidade[2]]], color='Ajuste'), linewidth=0.25) +
+      #   geom_line(aes(x=t, y=tendencia, color='Tendencia'), linewidth=0.5, linetype = "dashed") +
+      #   annotate('text', label=paste('EQM: ', round(eqm_mp, 5)), x=100, y=max(diff(serie))*0.8) +
+      #   ylab('Mortes por COVID-19')  +
+      #   scale_color_manual(values=c('#5555EE', '#363636', '#FFA0A0'))
+      # 
+      # g6 <- df_ %>%
+      #   ggplot() +
+      #   geom_line(aes(x=t, y=serie, color='Real'), size=0.2) +
+      #   geom_line(aes(x=t, y=.data[[metodos_sazonalidade[3]]], color='Ajuste'), linewidth=0.25) +
+      #   geom_line(aes(x=t, y=tendencia, color='Tendencia'), linewidth=0.5, linetype = "dashed") +
+      #   annotate('text', label=paste('EQM: ', round(eqm_mq, 5)), x=300, y=max(diff(serie))*0.8) +
+      #   ylab('Mortes por COVID-19')  +
+      #   scale_color_manual(values=c('#5555EE', '#363636', '#FFA0A0'))
+      if (nrow(sub_res_kris) != 0) {
+      g_total <- ggarrange(ggarrange(plotlist = graficos_kris, 
+                           # labels=nomes_metodos,
+                           ncol=4,
+                           nrow=1
+                           ), ggarrange(plotlist = graficos_spline, 
+                                        # labels=nomes_metodos,
+                                        ncol=4,
+                                        nrow=1
+                           ), ncol=1, nrow=2)
+      } else {
+        g_total <- ggarrange(plotlist = graficos_spline, 
+                     # labels=nomes_metodos,
+                     ncol=4,
+                     nrow=1
+        )
+        }
+      g_completo <- annotate_figure(g_total, 
+                      top = text_grob(paste("Gráficos da cidade:", cid), face = "bold", size = 14))
+      print(g_completo)
     }
     dev.off()
   }
 }
 
+resultados %>% group_by(cidade, method) %>% summarise(N=n()/4, eqm_min=min(eqm), eqm_prop=min(eqm)/max(eqm), parametro=parametro[eqm==min(eqm, na.rm = T)])

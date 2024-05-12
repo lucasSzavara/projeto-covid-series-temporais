@@ -1,6 +1,7 @@
 library(drc)
-
-
+source('./kriston_method.R')
+  
+  
 CubicInterpSplineAsPiecePoly <- function (x, y, method = c("fmm", "natural", "periodic", "hyman")) {
   ## method validation
   if (!(method %in% c("fmm", "natural", "periodic", "hyman")))
@@ -109,7 +110,7 @@ solve.PiecePoly <- function (a, b = 0, deriv = 0L, ...) {
   unlist(xr)
 }
 
-encontra_minimos <- function(serie, df=50) {
+splines_method <- function(serie, df=50) {
   serie[is.na(serie)] <- 0
   # cálculo da série diária
   y <- c(1, diff(serie))
@@ -129,7 +130,7 @@ encontra_minimos <- function(serie, df=50) {
     }
   }
   
-  return(minimos)
+  return(list(minimos=minimos, obj=spline_fit))
 }
 
 chutes_iniciais <- function(serie, N, minimos) {
@@ -172,9 +173,18 @@ ajusta_modelo <- function(serie, N, chutes) {
   return(fit)
 }
 
-estima_tendencia <- function(serie, params=F, df=50) {
+estima_tendencia <- function(serie, params=F, param=50, wcmethod='splines', dates=c()) {
   # print(serie)
-  minimos <- encontra_minimos(serie, df=df)
+  if (wcmethod == 'splines') {
+    minimos_ <- splines_method(serie, df=param)
+  } else if (wcmethod == 'kriston') {
+    minimos_ <- kriston_method(data.frame(y=diff(serie), date=dates), n.wind=param)
+  } else {
+    minimos_ <- wcmethod(serie)
+  }
+  # do.call
+  minimos <- minimos_$minimos
+  obj <- minimos_$obj
   t <- 1:length(serie)
   # if (N == 0) {
   #   fit <- drm(serie~t, fct=LL2.3())
@@ -195,13 +205,15 @@ estima_tendencia <- function(serie, params=F, df=50) {
       chute_inicial <- chutes_iniciais(serie, length(minimos), minimos)
       return(list(tendencia=predict(fit),
                   params=summary(fit)$parameters[,'Estimate'],
-                  chutes=chute_inicial))
+                  chutes=chute_inicial,
+                  obj=obj))
     }
     ipi <- t(as.data.frame(fit$coefficients))
     colnames(ipi) <- paste(substr(colnames(ipi),1,1), 1, sep='')
     return(list(tendencia=predict(fit),
                 params=ipi['fit$coefficients',],
-                chutes=ipi['fit$coefficients',]))
+                chutes=ipi['fit$coefficients',],
+                obj=obj))
   }
   return(predict(fit))
 }
