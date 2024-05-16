@@ -120,7 +120,7 @@ meta_params <- data.frame(method=c(rep('kriston', 4), rep('splines', 4)),
                           df=c(1:4 * 28, 2:5 * 10))
 # resultados <- subset(resultados, cidade!=cid)
 # estados <- 'São Paulo'
-for (estado in c('São Paulo')) {
+for (estado in estados) {
   cidades <- sort(unique(locais[locais$estados == estado,]$cidades))
   cat('Estado', estado, '\n Nº de cidades:', length(cidades))
   i <- 1
@@ -255,22 +255,26 @@ for (uf in unique(resultados$estado)) {
             serie=diff(serie),
             t=2:n
           ))
-          wave_start <- which(linha$obj[[1]]$BF > 3)
-          unique_waves <- c(wave_start[1])
-          for (i in 2:length(wave_start)) {
-            if(wave_start[i] - wave_start[i-1] > 1) {
-              unique_waves <- c(unique_waves, wave_start[i])
+          if (length(na.omit(linha$obj[[1]]$BF)) != 0) {
+            wave_start <- which(linha$obj[[1]]$BF > 3)
+            unique_waves <- c(wave_start[1])
+            for (i in 2:length(wave_start)) {
+              if(wave_start[i] - wave_start[i-1] > 1) {
+                unique_waves <- c(unique_waves, wave_start[i])
+              }
             }
-          }
-          unified_waves <- c(unique_waves[1])
-          for (i in 2:length(unique_waves)) {
-            bfs <- linha$obj[[1]]$BF[unified_waves[length(unified_waves)]:unique_waves[i]]
-            if (sum(is.na(bfs)) > 0 || sum(bfs < 1) > 0) {
-              unified_waves <- c(unified_waves, unique_waves[i])
+            unified_waves <- c(unique_waves[1])
+            for (i in 2:length(unique_waves)) {
+              bfs <- linha$obj[[1]]$BF[unified_waves[length(unified_waves)]:unique_waves[i]]
+              if (sum(is.na(bfs)) > 0 || sum(bfs < 1) > 0) {
+                unified_waves <- c(unified_waves, unique_waves[i])
+              }
             }
+            
+            unified_waves <- unified_waves - linha$parametro + 1
+          } else {
+            unified_waves <- c(1)
           }
-          
-          unified_waves <- unified_waves - linha$parametro + 1
           plot.cases <- ggplot(linha$obj[[1]], aes(date, cases)) +
             geom_line(aes(y=df$serie, color='Real'), size=0.2) +
             geom_line(aes(y=df$saz, color='Ajuste'), linewidth=0.25) +
@@ -304,7 +308,8 @@ for (uf in unique(resultados$estado)) {
           graficos_kris[[m]] <- g1
         }
       }
-      for (m in 1:nrow(sub_res_spline)) {
+      if (nrow(sub_res_spline) != 0) {
+        for (m in 1:nrow(sub_res_spline)) {
         linha <- sub_res_spline[m,]
         tendencia <- linha$tendencia[[1]]
         if (length(dim(linha$chute[[1]])) == 0 ) {
@@ -357,6 +362,7 @@ for (uf in unique(resultados$estado)) {
           scale_x_continuous(name=paste(linha$parametro, 'knots'))
         g1 <- ggarrange(plot.cases, plot_BF, ncol=1)
         graficos_spline[[m]] <- g1
+        }
       }
       # g1 <- list()
       # for (k in 1:3) {
@@ -413,7 +419,7 @@ for (uf in unique(resultados$estado)) {
       #   annotate('text', label=paste('EQM: ', round(eqm_mq, 5)), x=300, y=max(diff(serie))*0.8) +
       #   ylab('Mortes por COVID-19')  +
       #   scale_color_manual(values=c('#5555EE', '#363636', '#FFA0A0'))
-      if (nrow(sub_res_kris) != 0) {
+      if (nrow(sub_res_kris) != 0 && nrow(sub_res_spline) != 0) {
       g_total <- ggarrange(ggarrange(plotlist = graficos_kris, 
                            # labels=nomes_metodos,
                            ncol=4,
@@ -424,7 +430,7 @@ for (uf in unique(resultados$estado)) {
                                         nrow=1
                            ), ncol=1, nrow=2)
       } else {
-        g_total <- ggarrange(plotlist = graficos_spline, 
+        g_total <- ggarrange(plotlist = c(graficos_spline, graficos_kris), 
                      # labels=nomes_metodos,
                      ncol=4,
                      nrow=1
@@ -438,4 +444,4 @@ for (uf in unique(resultados$estado)) {
   }
 }
 
-resultados %>% group_by(cidade, method) %>% summarise(N=n()/4, eqm_min=min(eqm), eqm_prop=min(eqm)/max(eqm), parametro=parametro[eqm==min(eqm, na.rm = T)])
+resumo_metodos <- resultados %>% group_by(cidade, method) %>% summarise(N=n()/4, eqm_min=min(eqm), eqm_prop=min(eqm)/max(eqm), parametro=parametro[eqm==min(eqm, na.rm = T)])

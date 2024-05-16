@@ -329,7 +329,9 @@ month", ma.wind=1){
 
 kriston_method <- function(data, n.wind=84) {
   BF.out.3 <- Calculate.BF(data, n.wind=n.wind, n.boot=0)
-  
+  if (length(na.omit(BF.out.3$BF)) == 0) {
+    return(list(minimos=c(1), obj=BF.out.3))
+  }
   wave_start <- which(BF.out.3$BF > 3)
   unique_waves <- c(wave_start[1])
   for (i in 2:length(wave_start)) {
