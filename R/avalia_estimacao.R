@@ -112,7 +112,8 @@ resultados <- tibble(
   method="",
   parametro=Inf,
   obj=list(),
-  chute=list()
+  chute=list(),
+  pop=Inf
 )
 erros <- data.frame(estado=c(), cidade=c(), erro=c())
 methods <- c('kriston', 'splines')
@@ -173,6 +174,7 @@ for (estado in estados) {
                 method=method,
                 parametro=param,
                 obj=list(resultado$obj),
+                pop=dados$population[1]
               )
             }, error=function(err) {
               print(paste("Erro:  ",err))
@@ -264,10 +266,12 @@ for (uf in unique(resultados$estado)) {
               }
             }
             unified_waves <- c(unique_waves[1])
-            for (i in 2:length(unique_waves)) {
-              bfs <- linha$obj[[1]]$BF[unified_waves[length(unified_waves)]:unique_waves[i]]
-              if (sum(is.na(bfs)) > 0 || sum(bfs < 1) > 0) {
-                unified_waves <- c(unified_waves, unique_waves[i])
+            if (length(unique_waves) > 1) {
+              for (i in 2:length(unique_waves)) {
+                bfs <- linha$obj[[1]]$BF[unified_waves[length(unified_waves)]:unique_waves[i]]
+                if (sum(is.na(bfs)) > 0 || sum(bfs < 1) > 0) {
+                  unified_waves <- c(unified_waves, unique_waves[i])
+                }
               }
             }
             
@@ -443,5 +447,22 @@ for (uf in unique(resultados$estado)) {
     dev.off()
   }
 }
+resumo_metodos <- resultados %>% group_by(cidade, method, pop) %>% summarise(N=n()/4, eqm_min=min(eqm), eqm_prop=min(eqm)/max(eqm), parametro=parametro[eqm==min(eqm, na.rm = T)])
+# discretize
+resumo_metodos <- resumo_metodos %>% 
+  mutate(categoria=ifelse(pop < 1e4, 'muito pequena', 
+                          ifelse(pop < 5e4, 'pequena',
+                                 ifelse(pop < 1e5, 'media',
+                                        ifelse(pop < 1e6, 'grande', 'muito grande')))))
+resumo <- resumo_metodos %>% group_by(cidade, method) %>% 
+  filter(eqm==min(eqm)) %>% filter(parametro == min(parametro)) %>% 
+  group_by(categoria, method) %>% 
+  summarize(eqm.li=quantile(eqm_min, .25),
+            eqm.ls=quantile(eqm_min, .75),
+            eqm.md=median(eqm_min)
+            )
 
-resumo_metodos <- resultados %>% group_by(cidade, method) %>% summarise(N=n()/4, eqm_min=min(eqm), eqm_prop=min(eqm)/max(eqm), parametro=parametro[eqm==min(eqm, na.rm = T)])
+resumo %>% ggplot() +
+  geom_segment(aes(x=eqm.li, xend=eqm.ls, colour=method, y=method, yend=method)) +
+  geom_point(aes(x=eqm.md, y=method, colour=method)) +
+  facet_wrap(~categoria, ncol=5, scales='free_x')

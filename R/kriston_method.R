@@ -335,7 +335,7 @@ kriston_method <- function(data, n.wind=84) {
   wave_start <- which(BF.out.3$BF > 3)
   unique_waves <- c(wave_start[1])
   for (i in 2:length(wave_start)) {
-    if(wave_start[i] - wave_start[i-1] > 1) {
+    if(wave_start[i] - wave_start[i-1] > 1/3) {
       unique_waves <- c(unique_waves, wave_start[i])
     }
   }
