@@ -1,0 +1,511 @@
+library(dplyr)
+library(ggplot2)
+library('COVID19')
+library(splitstackshape)
+library(ggpubr)
+source('./metrics.R')
+library(SimDesign)
+library(purrr)
+source('./sazonalidade.R')
+
+
+# Amostra cidades para analisar:
+x <- covid19(country=c('Brazil'), level=3, verbose=F, vintage = "2023-09-30")
+x <- x %>% 
+  mutate(categoria=ifelse(population < 1e4, 'muito pequena', 
+                          ifelse(population < 5e4, 'pequena',
+                                 ifelse(population < 1e5, 'media',
+                                        ifelse(population < 1e6, 'grande', 'muito grande'))))) %>% 
+  mutate(categoria=factor(categoria, levels=c(
+    'muito pequena',
+    'pequena',
+    'media',
+    'grande',
+    'muito grande'
+  )))
+cidades <- x[, c('administrative_area_level_2',
+                 'administrative_area_level_3',
+                 'categoria', 'population')] %>% 
+  distinct()
+saveRDS(cidades, './lista_cidades.rds')
+cidades <- readRDS('./lista_cidades.rds')
+n <- 500
+Nh <- (cidades %>% group_by(categoria) %>% summarise(Nh=n()))
+N <- length(cidades$administrative_area_level_3)
+Nh <- Nh %>% mutate(Wh=Nh/N)
+Wh <- Nh$Wh
+n_h <- Wh * n
+names(n_h) <- c(
+  'muito pequena',
+  'pequena',
+  'media',
+  'grande',
+  'muito grande'
+)
+amostra_piloto <- cidades %>% stratified('categoria', round(n_h), replace=F)
+saveRDS(amostra_piloto, './locais.rds')
+rm(cidades, amostra_piloto, n_h, Nh, Wh, n, N)
+
+x %>%
+  filter(administrative_area_level_2=='Rio de Janeiro',
+         administrative_area_level_3=='Carapebus') %>% 
+  View()
+
+# Ajusta modelo nas cidades amostradas
+
+locais <- readRDS('./locais.rds')
+locais <- locais %>% 
+  mutate(dados=map2(administrative_area_level_2,
+                    administrative_area_level_3,
+                    function(e, c) {
+                      dados <- x %>% filter(administrative_area_level_2 == e & 
+                                              administrative_area_level_3 == c)
+                      
+                      corrige(dados, 'deaths')[c('deaths', 'population', 'date')]
+                    }, .progress = list(
+                      type = "iterator", 
+                      clear = T,
+                      show_after=0
+                    )
+  )
+  )
+locais$y <- locais$dados %>% lapply(function(dados) dados$deaths)
+locais$y_diff <- locais$y %>% lapply(function(y) diff(y))
+locais$pop <- locais$dados %>% lapply(function(dados) dados$population[1])
+locais$date <- locais$dados %>% lapply(function(dados) dados$date)
+
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+print(time.taken)
+
+
+hiperparametros <- createDesign(method=c('splines_method'),
+                                param=c(5, 10, 20, 30),
+                                weekly=c(T, F),
+                                opt=c('nloptr', 'nls'))
+cenarios <- cross_join(locais, hiperparametros)
+cenarios <- cenarios %>% 
+  mutate(fit_tendencia=pmap(
+    list(y, pop, param, method, date, weekly, opt),
+    function(y, pop, param, method, date, weekly, opt) {
+      tryCatch(quietly(estima_tendencia)(y,
+                                         pop,
+                                         params=T, 
+                                         param=param, 
+                                         wcmethod=method,
+                                         dates = date,
+                                         weekly=weekly, 
+                                         optimization_method=opt
+      )$result, error=function(err) as.character(err)
+      )
+    }, .progress = list(
+      type = "iterator", 
+      clear = T,
+      show_after=0
+    )
+  ))
+
+cenarios$t_diff <- cenarios$fit_tendencia %>% 
+  lapply(function(t) tryCatch(diff(t$tendencia),
+                              error=function(err) as.character(err)))
+
+cenarios <- cenarios %>% 
+  mutate(saz=map2(y_diff, t_diff, 
+                  function(y, t) {
+                    tryCatch(
+                      sazonalidade_mp(y, t),
+                      error=function(err) as.character(err)
+                    )
+                  }, .progress = list(
+                    type = "iterator", 
+                    clear = T,
+                    show_after=0
+                  )
+  )
+  )
+
+cenarios <- cenarios %>% 
+  mutate(y_hat=map2(t_diff, saz,
+                    function(t, saz) {
+                      tryCatch(
+                        t * saz,
+                        error=function(err) as.character(err)
+                      )
+                    }, .progress = list(
+                      type = "iterator", 
+                      clear = T,
+                      show_after=0
+                    )
+  ))
+
+cenarios <- cenarios %>% 
+  mutate(mad.mean.daily=map2(y_hat, y_diff,
+                             function(y_hat, y_diff) {
+                               tryCatch(
+                                 mad.mean(y_diff, y_hat),
+                                 error=function(err) as.character(err)
+                               )
+                             }, .progress = list(
+                               type = "iterator", 
+                               clear = T,
+                               show_after=0
+                             )
+  ),
+  mad.mean.cummulative=map2(y_hat, y,
+                            function(y_hat, y) {
+                              tryCatch(
+                                mad.mean(y, diffinv(y_hat, xi=0)),
+                                error=function(err) as.character(err)
+                              )
+                            }, .progress = list(
+                              type = "iterator", 
+                              clear = T,
+                              show_after=0
+                            )
+  )
+  )
+
+
+cenarios$chute_inicial <- cenarios$fit_tendencia %>% 
+  lapply(function(t) tryCatch(calcula_tend(t$chutes[1,], 1:length(t$tendencia))$n,
+                              error=function(err) as.character(err)))
+
+cenarios$erro <- is.na(cenarios$mad.mean.cummulative)
+saveRDS(cenarios, './cenarios_amostrados_splines.rds')
+
+
+hiperparametros <- createDesign(method=c('kriston_method'),
+                                param=c(1:4 * 28),
+                                weekly=c(T, F),
+                                opt=c('nloptr', 'nls'))
+hiperparametros[hiperparametros$weekly, 'param'] = hiperparametros[hiperparametros$weekly, 'param'] / 7
+cenarios <- cross_join(locais, hiperparametros)
+cenarios <- cenarios %>% 
+  mutate(fit_tendencia=pmap(
+    list(y, pop, param, method, date, weekly, opt),
+    function(y, pop, param, method, date, weekly, opt) {
+      tryCatch(quietly(estima_tendencia)(y,
+                                         pop,
+                                         params=T, 
+                                         param=param, 
+                                         wcmethod=method,
+                                         dates = date,
+                                         weekly=weekly, 
+                                         optimization_method=opt
+      )$result, error=function(err) as.character(err)
+      )
+    }, .progress = list(
+      type = "iterator", 
+      clear = T,
+      show_after=0
+    )
+  ))
+
+
+# cenarios$tendencia <- cenarios$fit_tendencia %>% 
+#   lapply(function(t) tryCatch(t$tendencia,
+#                               error=function(err) as.character(err)))
+cenarios$t_diff <- cenarios$fit_tendencia %>% 
+  lapply(function(t) tryCatch(diff(t$tendencia),
+                              error=function(err) as.character(err)))
+
+cenarios <- cenarios %>% 
+  mutate(saz=map2(y_diff, t_diff, 
+                  function(y, t) {
+                    tryCatch(
+                      sazonalidade_mp(y, t),
+                      error=function(err) as.character(err)
+                    )
+                  }, .progress = list(
+                    type = "iterator", 
+                    clear = T,
+                    show_after=0
+                  )
+  )
+  )
+
+cenarios <- cenarios %>% 
+  mutate(y_hat=map2(t_diff, saz,
+                    function(t, saz) {
+                      tryCatch(
+                        t * saz,
+                        error=function(err) as.character(err)
+                      )
+                    }, .progress = list(
+                      type = "iterator", 
+                      clear = T,
+                      show_after=0
+                    )
+  ))
+
+cenarios <- cenarios %>% 
+  mutate(mad.mean.daily=map2(y_hat, y_diff,
+                             function(y_hat, y_diff) {
+                               tryCatch(
+                                 mad.mean(y_diff, y_hat),
+                                 error=function(err) as.character(err)
+                               )
+                             }, .progress = list(
+                               type = "iterator", 
+                               clear = T,
+                               show_after=0
+                             )
+  ),
+  mad.mean.cummulative=map2(y_hat, y,
+                            function(y_hat, y) {
+                              tryCatch(
+                                mad.mean(y, diffinv(y_hat, xi=0)),
+                                error=function(err) as.character(err)
+                              )
+                            }, .progress = list(
+                              type = "iterator", 
+                              clear = T,
+                              show_after=0
+                            )
+  )
+  )
+
+
+cenarios$chute_inicial <- cenarios$fit_tendencia %>% 
+  lapply(function(t) tryCatch(calcula_tend(t$chutes[1,], 1:length(t$tendencia))$n,
+                              error=function(err) as.character(err)))
+
+cenarios$erro <- is.na(cenarios$mad.mean.cummulative)
+saveRDS(cenarios, './cenarios_amostrados_kriston.rds')
+rm(cenarios)
+rm(x)
+
+
+
+# Compara ajustes
+get_box_stats <- function(y) {
+  return(data.frame(
+    y = 2.5,
+    label = paste(
+      "Count =", length(y), "\n",
+      "Mean =", round(mean(y), 2), "\n",
+      "Median =", round(median(y), 2), "\n"
+    )
+  ))
+}
+
+
+get_count_stats <- function(y) {
+  return(data.frame(
+    y = 2.5,
+    label = length(y)
+    )
+  )
+}
+
+# cenarios <- readRDS('./cenarios_light.rds')
+# cenarios$erro <- is.na(cenarios$mad.mean.cummulative)
+# cenarios_splines <- cenarios %>% filter(method == 'splines_method')
+cenarios_splines <- readRDS('./cenarios_amostrados_splines.rds')
+cenarios_splines$param <- unlist(as.factor(cenarios_splines$param))
+cenarios_splines$mad.mean.daily <- as.numeric(cenarios_splines$mad.mean.daily)
+
+cenarios_splines %>% filter(!erro) %>%
+  ggplot(aes(x=param, y=mad.mean.daily, fill=weekly)) +
+  geom_boxplot() +
+  stat_summary(fun.data = get_box_stats, geom = "text", hjust = 0.5, vjust = 0.9) +
+  facet_grid(opt~weekly)
+
+cenarios_splines <- cenarios_splines %>% 
+  mutate(categoria=ifelse(pop < 1e4, 'muito pequena', 
+                          ifelse(pop < 5e4, 'pequena',
+                                 ifelse(pop < 1e5, 'media',
+                                        ifelse(pop < 1e6, 'grande', 'muito grande'))))) %>% 
+  mutate(categoria=factor(categoria, levels=c(
+    'muito pequena',
+    'pequena',
+    'media',
+    'grande',
+    'muito grande'
+  )))
+
+cenarios_splines %>% filter(!erro) %>%
+  ggplot(aes(x=param, y=mad.mean.daily, fill=weekly)) +
+  geom_boxplot() +
+  stat_summary(fun.data = get_count_stats,
+               geom = "text",
+               hjust = 0.5,
+               vjust = 0.9,
+               position = position_dodge(width = 0.9)) +
+  facet_grid(opt~categoria)
+
+# Para o spline, parece que quanto mais converge, piores as métricas de erro.
+# É difícil escolher uma boa configuração
+
+
+
+# cenarios_kriston <- cenarios %>% filter(method == 'kriston_method')
+cenarios_kriston <- readRDS('./cenarios_amostrados_kriston.rds')
+cenarios_kriston$param <- unlist(as.factor(cenarios_kriston$param))
+cenarios_kriston$mad.mean.daily <- as.numeric(cenarios_kriston$mad.mean.daily)
+
+cenarios_kriston %>% filter(!erro) %>%
+  ggplot(aes(x=param, y=mad.mean.daily, fill=weekly)) +
+  geom_boxplot() +
+  stat_summary(fun.data = get_box_stats, geom = "text", hjust = 0.5, vjust = 0.9) +
+  facet_grid(opt~.)
+
+cenarios_kriston <- cenarios_kriston %>% 
+  mutate(categoria=ifelse(pop < 1e4, 'muito pequena', 
+                          ifelse(pop < 5e4, 'pequena',
+                                 ifelse(pop < 1e5, 'media',
+                                        ifelse(pop < 1e6, 'grande', 'muito grande'))))) %>% 
+  mutate(categoria=factor(categoria, levels=c(
+    'muito pequena',
+    'pequena',
+    'media',
+    'grande',
+    'muito grande'
+  )))
+
+cenarios_kriston %>% filter(!erro) %>%
+  ggplot(aes(x=param, y=mad.mean.daily, fill=weekly)) +
+  geom_boxplot() +
+  stat_summary(fun.data = get_count_stats,
+               geom = "text",
+               hjust = 0.5,
+               vjust = 0.9,
+               position = position_dodge(width = 0.75)) +
+  facet_grid(opt~categoria)
+
+# Para o kriston, o melhor parece ser semanal, usando 4 semanas. 
+# O NLOPTR parece convergir com mais frequencia, mas para essa configuração tem 
+# as mesmas métricas de erro
+
+
+locais <- readRDS('./locais.rds')
+locais$pop <- unlist(locais$population)
+locais <- locais %>% arrange(desc(pop))
+cenarios_splines <- readRDS('./cenarios_amostrados_splines.rds')
+cenarios_splines$erro <- is.na(cenarios_splines$mad.mean.cummulative)
+
+gera_grafico.fn <- function(cen, date_, y, method) {
+  fn <- function(p) {
+    # p <- 30
+    # cenario_total <- cenarios_splines[cenarios_splines$administrative_area_level_2 == 'Alagoas' &
+    #                                     cenarios_splines$administrative_area_level_3 == 'Maceió',]
+    # cen <- cenario_total[!cenario_total$weekly, ]
+    # y <- cen[1, 'y_diff'][[1]][[1]]
+    # date_ <- cen[1, 'date'][[1]][[1]]
+    # cen <- cen %>% mutate(
+    #   y_hat=ifelse(erro, 0, y_hat),
+    #   chute_inicial=ifelse(erro, 0, chute_inicial)
+    # )
+    cen.param <- cen[cen$param == p,]
+    cen.param <- cen.param %>% mutate(
+      mad.mean.daily=ifelse(erro, Inf, mad.mean.daily),
+    )
+    if (nrow(cen.param[!cen.param$erro]) == 0) {
+      df <- data.frame('Real'=cumsum(y),
+                       'Dia'=date_[2:length(date_)])
+      plot <- ggplot(df) +
+        geom_point(aes(x=Dia, y=Real, color='Real'), alpha=0.3) +
+        theme(
+          axis.title.x = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks.x=element_blank(),
+          legend.position = 'none') +
+        scale_color_manual(values=c('#363636')) +
+        ggtitle(paste('Spline com parametro', p))
+      return(plot)
+    }
+    y_hat.nls <- cen.param[cen.param$opt == 'nls', 'y_hat'][[1]][[1]]
+    y_hat.nloptr <- cen.param[cen.param$opt == 'nloptr', 'y_hat'][[1]][[1]]
+    
+    mad.mean.daily.nls <- cen.param[cen.param$opt == 'nls', 'mad.mean.daily'][[1]][[1]]
+    mad.mean.daily.nloptr <- cen.param[cen.param$opt == 'nloptr', 'mad.mean.daily'][[1]][[1]]
+    umbrae_res <- umbrae(y, y_hat.nloptr, y_hat.nls)
+    y_hat.0 <- diff(cen.param[!cen.param$erro][1, 'chute_inicial'][[1]][[1]])
+    df <- data.frame('Real'=cumsum(y),
+                     'Chute Inicial'=cumsum(y_hat.0),
+                     'NLS'=cumsum(y_hat.nls),
+                     'Verossimilhança'=cumsum(y_hat.nloptr),
+                     'Dia'=date_[2:length(date_)])
+    plot <- ggplot(df) +
+      geom_point(aes(x=Dia, y=Real, color='Real'), alpha=0.3) +
+      geom_line(aes(x=Dia, y=NLS, color='Normal')) +
+      geom_line(aes(x=Dia, y=Verossimilhança, color='Binomial')) +
+      geom_line(aes(x=Dia, y=Chute.Inicial, color='Chute Inicial')) +
+      theme(
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x=element_blank(),
+        legend.position = 'none') +
+      scale_color_manual(values=c('#5555EE', '#FFA0A0', '#50FF50', '#363636')) +
+      annotate(
+        'text',
+        label=paste('umbrae (binomial com baseline normal): ', round(umbrae_res, 5),
+                    '\n MAD/mean binomial (*):', ifelse(is.numeric(mad.mean.daily.nloptr),
+                                                    round(mad.mean.daily.nloptr, 5), NA),
+                    '\n MAD/mean normal (**):', ifelse(is.numeric(mad.mean.daily.nls),
+                                                  round(mad.mean.daily.nls, 5), NA),
+                    '\n * / **: ', round(mad.mean.daily.nloptr / mad.mean.daily.nls, 5)),
+        x=as.Date('2022-10-01'),
+        y=sum(y)*0.5
+      ) +
+      ggtitle(paste(method, 'com parametro', p))
+    plot
+  }
+  return(fn)
+}
+
+gera_grafico.grupo <- function(cen, method) {
+  date_ <- cen[1, 'date'][[1]][[1]]
+  y <- cen[1, 'y_diff'][[1]][[1]]
+  cen <- cen %>% mutate(
+    y_hat=ifelse(erro, -1, y_hat),
+    chute_inicial=ifelse(erro, 0, chute_inicial)
+  )
+  
+  plots <- lapply(unique(cen$param), gera_grafico.fn(cen, date_, y, 'method'))
+  plot <- ggarrange(plotlist=plots, ncol=2, common.legend = T, nrow = 2)
+  plot
+}
+
+gera_pagina.fn <- function(cenario, method) {
+  fn <- function(linha) {
+    cenario_total <- cenario[cenario$administrative_area_level_2 == linha$administrative_area_level_2 &
+                             cenario$administrative_area_level_3 == linha$administrative_area_level_3,]
+    cen <- cenario_total[cenario_total$weekly, ]
+    weekly <- gera_grafico.grupo(cen, method)
+    
+    cen <- cenario_total[!cenario_total$weekly, ]
+    n_weekly <- gera_grafico.grupo(cen, method)
+    
+    fig <- ggarrange(weekly, n_weekly, nrow=2, common.legend = T, labels = c('Semanal', 'Diário'))
+    annotate_figure(fig, top = text_grob(paste(linha$administrative_area_level_2,
+                                               linha$administrative_area_level_3,
+                                               'População',
+                                               linha$pop,
+                                               sep = '-'),
+                                         face = "bold", size = 14))
+  }
+}
+
+plots <- by(locais,
+            seq_len(nrow(locais)),
+            gera_pagina.fn(cenarios_splines, 'Splines'))
+
+
+plots
+pdf(paste('./splines.pdf', sep=''),
+    width=18, height=12)
+plots
+dev.off()
+
+
+cenarios_kriston <- readRDS('./cenarios_amostrados_kriston.rds')
+cenarios_kriston$erro <- is.na(cenarios_kriston$mad.mean.cummulative)
+plots <- by(locais,
+            seq_len(nrow(locais)),
+            gera_pagina.fn(cenarios_kriston, 'Kriston'))
+plots
+pdf(paste('./kriston.pdf', sep=''),
+    width=18, height=12)
+plots
+dev.off()

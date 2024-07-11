@@ -1,5 +1,6 @@
 source('./tendencia.R')
 source('./sazonalidade.R')
+source('./metrics.R')
 source('./src/services/carregar_dados.R')
 library(drc)
 library('COVID19')
@@ -9,6 +10,9 @@ library(psych)
 library(nloptr)
 library(ggpubr)
 library(stats)
+library(dplyr)
+library(SimDesign)
+library(purrr)
 
 
 #------------------------------------------------------------
@@ -16,176 +20,304 @@ library(stats)
 # Salvar dados de cidades do Brasil em arquivos separados
 x <- covid19(country=c('Brazil'), level=3, verbose=F, vintage = "2023-09-30")
 
+locais <- readRDS('./cidades_amostradas.rds')
+locais <- locais %>% 
+   mutate(dados=map2(administrative_area_level_2,
+                     administrative_area_level_3,
+                 function(e, c) {
+                   dados <- x %>% filter(administrative_area_level_2 == e & 
+                                 administrative_area_level_3 == c)
+                  
+                   corrige(dados, 'deaths')[c('deaths', 'population', 'date')]
+                 }, .progress = list(
+                   type = "iterator", 
+                   clear = T,
+                   show_after=0
+                 )
+                 )
+          )
+locais$y <- locais$dados %>% lapply(function(dados) dados$deaths)
+locais$y_diff <- locais$y %>% lapply(function(y) diff(y))
+locais$pop <- locais$dados %>% lapply(function(dados) dados$population[1])
+locais$date <- locais$dados %>% lapply(function(dados) dados$date)
 
-erro_sazonalidade <- function(sigma, t, z) {
-  eq <- 0
-  d <- c()
-  for (i in 1:7){
-    zi <- z[c(rep(F, i-1), T, rep(F, 7-i))]
-    eq <- eq + sum((zi/sigma[i] - 1) ^ 2)
-    d <- c(d, 2/sigma[i] * sum(zi*(sigma[i] - zi)))
-  }
-  return( list("objective"=eq,
-               "gradient"=d))
-}
-
-
-restricao <- function(sigma, t, z) {
-  S <- c()
-  jacs <- c()
-  for (i in 1:7){
-    S <- c(S, sigma[i]*sum(t[c(rep(F, i-1), T, rep(F, 7-i))]))
-    jacs <- c(jacs, sum(t[c(rep(F, i-1), T, rep(F, 7-i))]))
-  }
-  return(list("constraints"=sum(S) - sum(t),
-              "jacobian"=jacs))
-}
-
-sazonalidade_mg <- function(y, t) {
-  saz <- c()
-  termos <- c()
-  for (i in 1:6){
-    dias <- (y / t)[c(rep(F, i-1), T, rep(F, 7-i))]
-    saz_i <- geometric.mean(c(dias[dias > 0], rep(1, sum(dias == 0))))
-    saz <- c(saz, saz_i)
-    termos <- c(termos, saz_i*sum(t[c(rep(F, i-1), T, rep(F, 7-i))]))
-  }
-  saz <- c(saz, (max(fit_tend) - sum(termos))/sum(t[c(rep(F, 6), T)]))
-  saz
-}
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+print(time.taken)
 
 
-sazonalidade_mq <- function(y, t, s0=c()) {
-  
-  if(length(s0) != 7) {
-    s0 <- c()
-    for (i in 1:7){
-      dias <- (y / t)[c(rep(F, i-1), T, rep(F, 7-i))]
-      saz_i <- geometric.mean(c(dias[dias > 0], rep(1, sum(dias == 0))))
-      s0 <- c(s0, saz_i)
-    }
-  }
-  res0 <- nloptr( 
-    x0=s0, 
-    eval_f=erro_sazonalidade, 
-    lb = rep(0, 7), 
-    eval_g_eq = restricao,
-    opts = list("algorithm" = "NLOPT_LD_AUGLAG",
-                "xtol_rel"=1.0e-8,
-                "print_level" = 0,
-                "local_opts"=list("algorithm"="NLOPT_LD_SLSQP",
-                                  "xtol_rel"=1.0e-5),
-                "maxeval"=5000),
-    t = t, 
-    z = y / t
+hiperparametros <- createDesign(method=c('splines_method'),
+                         param=c(5, 10, 20, 30),
+                         weekly=c(T, F),
+                         opt=c('nloptr', 'nls'))
+cenarios <- cross_join(locais, hiperparametros)
+cenarios <- cenarios %>% 
+  mutate(fit_tendencia=pmap(
+    list(y, pop, param, method, date, weekly, opt),
+    function(y, pop, param, method, date, weekly, opt) {
+      tryCatch(quietly(estima_tendencia)(y,
+                                pop,
+                                params=T, 
+                                param=param, 
+                                wcmethod=method,
+                                dates = date,
+                                weekly=weekly, 
+                                optimization_method=opt
+                                )$result, error=function(err) as.character(err)
+      )
+    }, .progress = list(
+      type = "iterator", 
+      clear = T,
+      show_after=0
+    )
+  ))
+
+cenarios$t_diff <- cenarios$fit_tendencia %>% 
+  lapply(function(t) tryCatch(diff(t$tendencia),
+                              error=function(err) as.character(err)))
+
+cenarios <- cenarios %>% 
+  mutate(saz=map2(y_diff, t_diff, 
+                  function(y, t) {
+                    tryCatch(
+                      sazonalidade_mp(y, t),
+                      error=function(err) as.character(err)
+                    )
+                  }, .progress = list(
+                    type = "iterator", 
+                    clear = T,
+                    show_after=0
+                  )
+                )
   )
-  saz <- res0$solution
-  saz
-}
+
+cenarios <- cenarios %>% 
+  mutate(y_hat=map2(t_diff, saz,
+                function(t, saz) {
+                  tryCatch(
+                    t * saz,
+                    error=function(err) as.character(err)
+                  )
+                }, .progress = list(
+                  type = "iterator", 
+                  clear = T,
+                  show_after=0
+                )
+  ))
+
+cenarios <- cenarios %>% 
+  mutate(mad.mean.daily=map2(y_hat, y_diff,
+                       function(y_hat, y_diff) {
+                         tryCatch(
+                           mad.mean(y_diff, y_hat),
+                           error=function(err) as.character(err)
+                         )
+                       }, .progress = list(
+                         type = "iterator", 
+                         clear = T,
+                         show_after=0
+                       )
+          ),
+        mad.mean.cummulative=map2(y_hat, y,
+                                  function(y_hat, y) {
+                                    tryCatch(
+                                      mad.mean(y, diffinv(y_hat, xi=0)),
+                                      error=function(err) as.character(err)
+                                    )
+                                  }, .progress = list(
+                                    type = "iterator", 
+                                    clear = T,
+                                    show_after=0
+                                  )
+        )
+  )
 
 
-sazonalidade_mp <- function(y, t) {
-  saz <- c()
-  termos <- c()
-  for (i in 1:7){
-    ind <- c(rep(F, i-1), T, rep(F, 7-i))
-    dias <- (y / t)[ind]
-    saz_i <- weighted.mean(dias, t[ind])
-    saz <- c(saz, saz_i)
-    termos <- c(termos, saz_i*sum(t[ind]))
-  }
-  saz
-}
+cenarios$chute_inicial <- cenarios$fit_tendencia %>% 
+  lapply(function(t) tryCatch(calcula_tend(t$chutes[1,], 1:length(t$tendencia))$n,
+                              error=function(err) as.character(err)))
+
+cenarios$erro <- is.na(cenarios$mad.mean.cummulative)
+saveRDS(cenarios, './cenarios_amostrados_splines.rds')
 
 
-locais <- read.csv('dados/estados_cidades.csv')
-series <- c('deaths') # c("confirmed","deaths","vaccines")
-estados <- sort(unique(locais$estados))
-resultados <- tibble(
-  estado="",
-  cidade="",
-  serie="",
-  parametros=list(),
-  tendencia=list(),
-  saz=list(),
-  eqm=Inf,
-  method="",
-  parametro=Inf,
-  obj=list(),
-  chute=list(),
-  pop=Inf
-)
-erros <- data.frame(estado=c(), cidade=c(), erro=c())
-methods <- c('kriston', 'splines')
-meta_params <- data.frame(method=c(rep('kriston', 4), rep('splines', 4)),
-                          df=c(1:4 * 28, 2:5 * 10))
-# resultados <- subset(resultados, cidade!=cid)
-# estados <- 'São Paulo'
-for (estado in estados) {
-  cidades <- sort(unique(locais[locais$estados == estado,]$cidades))
-  cat('Estado', estado, '\n Nº de cidades:', length(cidades))
-  i <- 1
-  for (serie in series) {
-    for (cidade in cidades) {
-      dados <- subset(x, administrative_area_level_2 == estado & administrative_area_level_3 == cidade)
-      dados <- corrige(dados, serie)
-      y <- dados[[serie]]
-      n <- length(y)
-      for (method in methods) {
-        params <- meta_params[meta_params$method==method,]$df
-        for (param in params) {
-          tryCatch({
-            if (i %% 50 == 0) {
-              cat(i)
-            }
-            i <- i + 1
-            # serie <- 'deaths'
-            # estado <- 'São Paulo'
-            # cidade <- 'Santo André'
-            # dados <- subset(x, administrative_area_level_2 == estado & administrative_area_level_3 == cidade)
-            # dados <- corrige(dados, serie)
-            # y <- dados[[serie]]
-            # n <- length(y)
-            # source('./tendencia.R')
-            print(param)
-            print(method)
-            resultado <- estima_tendencia(y,
-                                          params=T, 
-                                          param=param, 
-                                          wcmethod=method, dates = dados$date[2:n])
-            fit_tend <- resultado$tendencia
-            params_tend <- list(resultado$params)
-            chutes <- list(resultado$chutes)
-            t <- diff(fit_tend)
-            y_ <- diff(y)
-            
-            saz <- sazonalidade_mp(y_, t)
-            eqm <-  sum((y_ - t*saz)^2) / n
-            resultados <- resultados %>% 
-              add_row(
-                estado=estado,
-                cidade=cidade,
-                serie='deaths',
-                parametros=params_tend,
-                chute=chutes,
-                eqm=eqm,
-                saz=list(saz),
-                tendencia=list(t),
-                method=method,
-                parametro=param,
-                obj=list(resultado$obj),
-                pop=dados$population[1]
-              )
-            }, error=function(err) {
-              print(paste("Erro:  ",err))
-              cat(estado, cidade, serie, '\n')
-              erros[nrow(erros) + 1,] <- c(estado, cidade, err)
-          })
-        }
-      }
-    }
-  }
-}
+hiperparametros <- createDesign(method=c('kriston_method'),
+                                param=c(1:4 * 28),
+                                weekly=c(T, F),
+                                opt=c('nloptr', 'nls'))
+hiperparametros[hiperparametros$weekly, 'param'] = hiperparametros[hiperparametros$weekly, 'param'] / 7
+cenarios <- cross_join(locais, hiperparametros)
+cenarios <- cenarios %>% 
+  mutate(fit_tendencia=pmap(
+    list(y, pop, param, method, date, weekly, opt),
+    function(y, pop, param, method, date, weekly, opt) {
+      tryCatch(quietly(estima_tendencia)(y,
+                                         pop,
+                                         params=T, 
+                                         param=param, 
+                                         wcmethod=method,
+                                         dates = date,
+                                         weekly=weekly, 
+                                         optimization_method=opt
+      )$result, error=function(err) as.character(err)
+      )
+    }, .progress = list(
+      type = "iterator", 
+      clear = T,
+      show_after=0
+    )
+  ))
+
+
+# cenarios$tendencia <- cenarios$fit_tendencia %>% 
+#   lapply(function(t) tryCatch(t$tendencia,
+#                               error=function(err) as.character(err)))
+cenarios$t_diff <- cenarios$fit_tendencia %>% 
+  lapply(function(t) tryCatch(diff(t$tendencia),
+                              error=function(err) as.character(err)))
+
+cenarios <- cenarios %>% 
+  mutate(saz=map2(y_diff, t_diff, 
+                  function(y, t) {
+                    tryCatch(
+                      sazonalidade_mp(y, t),
+                      error=function(err) as.character(err)
+                    )
+                  }, .progress = list(
+                    type = "iterator", 
+                    clear = T,
+                    show_after=0
+                  )
+  )
+  )
+
+cenarios <- cenarios %>% 
+  mutate(y_hat=map2(t_diff, saz,
+                    function(t, saz) {
+                      tryCatch(
+                        t * saz,
+                        error=function(err) as.character(err)
+                      )
+                    }, .progress = list(
+                      type = "iterator", 
+                      clear = T,
+                      show_after=0
+                    )
+  ))
+
+cenarios <- cenarios %>% 
+  mutate(mad.mean.daily=map2(y_hat, y_diff,
+                             function(y_hat, y_diff) {
+                               tryCatch(
+                                 mad.mean(y_diff, y_hat),
+                                 error=function(err) as.character(err)
+                               )
+                             }, .progress = list(
+                               type = "iterator", 
+                               clear = T,
+                               show_after=0
+                             )
+  ),
+  mad.mean.cummulative=map2(y_hat, y,
+                            function(y_hat, y) {
+                              tryCatch(
+                                mad.mean(y, diffinv(y_hat, xi=0)),
+                                error=function(err) as.character(err)
+                              )
+                            }, .progress = list(
+                              type = "iterator", 
+                              clear = T,
+                              show_after=0
+                            )
+  )
+  )
+
+
+cenarios$chute_inicial <- cenarios$fit_tendencia %>% 
+  lapply(function(t) tryCatch(calcula_tend(t$chutes[1,], 1:length(t$tendencia))$n,
+                              error=function(err) as.character(err)))
+
+cenarios$erro <- is.na(cenarios$mad.mean.cummulative)
+saveRDS(cenarios, './cenarios_amostrados_kriston.rds')
+
+cenarios <- readRDS("./cenarios_21_06.rds")
+cenarios_ <- readRDS("./cenarios_26_06.rds")
+cenarios <- rbind(cenarios, cenarios_)
+rm(cenarios_)
+cenarios <- cenarios[,c('y', 'y_diff', 'method', 'param', 'weekly', 'opt',
+                        'tendencia', 't_diff', 'y_hat', 'mad.mean.daily',
+                        'mad.mean.cummulative', 'chute_inicial')]
+saveRDS(cenarios, './cenarios.rds')
+cenarios <- readRDS('./cenarios.rds')
+
+cenarios <- cenarios[,c('method', 'param', 'weekly', 'opt',
+                        'mad.mean.daily',
+                        'mad.mean.cummulative', 'y_hat', 'y_diff')]
+saveRDS(cenarios, './cenarios_medium.rds')
+
+cenarios <- readRDS('./cenarios_light.rds')
+
+cenarios <- cenarios %>% 
+  mutate(umbrae.total=map2(y_hat, y_diff,
+                             function(y_hat, y_diff) {
+                               tryCatch(
+                                 umbrae(y_diff, y_hat),
+                                 error=function(err) as.character(err)
+                               )
+                             }, .progress = list(
+                               type = "iterator", 
+                               clear = T,
+                               show_after=0
+                             )
+  )
+  )
+cenarios$erro <- is.na(cenarios$mad.mean.cummulative)
+cenarios %>% group_by(method) %>% summarise(tx_erro=mean(erro))
+cenarios %>% filter(method=='splines_method') %>% nrow()
+cenarios$param_ <- paste(cenarios$method, cenarios$param)
+logit <- glm(erro ~ (method  + opt)^2,
+             data=cenarios,
+             # subset = cenarios$method=='splines_method',
+             family='binomial')
+
+logit.sumario <- summary(logit)
+saveRDS(logit, 'logit_erros_spline.rds')
+anova_erros <- anova(logit)
+anova_erros
+cenarios <- cenarios %>% 
+  filter(!erro)
+
+cenarios$mad.mean.daily <- unlist(cenarios$mad.mean.daily)
+modelo.mad.daily <- lm(mad.mean.daily ~ (method + opt)^2,
+                       # subset = cenarios$method=='splines_method',
+             data=cenarios)
+modelo.mad.sumario <- summary(modelo.mad.daily)
+
+coefs <- data.frame(logit=logit.sumario$coefficients, mad=modelo.mad.sumario$coefficients)
+coefs[, c('logit.Estimate', 'mad.Estimate')] %>% View()
+cor(coefs$logit.Estimate, coefs$mad.Estimate)
+
+coefs %>% ggplot(aes(x=logit.Estimate, y=mad.Estimate, label=rownames(coefs))) +
+  geom_point() +
+  scale_y_continuous(limits=c(-0.15, 0.25))+
+  scale_x_continuous(limits=c(-2.5, 5)) +
+  geom_text(aes(size = sqrt(logit.Estimate^2 + mad.Estimate^2))) +
+  guides(size="none")
+
+
+
+saveRDS(modelo.mad.daily, 'modelo.mad.daily.rds')
+anova_mad <- anova(modelo.mad.daily)
+anova_mad
+modelo.mad.daily.sem.inter <- lm(mad.mean.daily ~ param_ + weekly + opt,
+                       data=cenarios)
+summary(modelo.mad.daily.sem.inter)
+saveRDS(modelo.mad.daily.sem.inter, 'modelo.mad.daily.sem.inter.rds')
+anova_mad_sem_inter <- anova(modelo.mad.daily.sem.inter)
+anova_mad_sem_inter
+
+
+cenarios <- cenarios[sample(1:nrow(cenarios), size = round(nrow(cenarios)/100)),]
 
 tamanhos <- c(0, 1e4, 5e4, 1e5, 1e6, Inf)
 nomes_tamanhos <- c(
@@ -249,7 +381,7 @@ for (uf in unique(resultados$estado)) {
           }
           ajuste_inicial <- calcula_tend(chute_inicial, 1:(length(serie)))$n
           saz <- linha$saz[[1]]
-          eqm <- linha$eqm
+          umbrae_s <- linha$umbrae_s
           
           df <- as.data.frame(cbind(
             chute=diff(ajuste_inicial),
@@ -279,11 +411,11 @@ for (uf in unique(resultados$estado)) {
           } else {
             unified_waves <- c(1)
           }
-          plot.cases <- ggplot(linha$obj[[1]], aes(date, cases)) +
+          plot.cases <- ggplot(linha$obj[[1]], aes(1:(length(serie)), cases)) +
             geom_line(aes(y=df$serie, color='Real'), size=0.2) +
             geom_line(aes(y=df$saz, color='Ajuste'), linewidth=0.25) +
             geom_line(aes(y=df$chute, color='Chute inicial'), linewidth=0.5) +
-            annotate('text', label=paste('EQM: ', round(eqm, 5)), x=as.Date('2020-07-01'), y=max(diff(serie))*0.8) +
+            annotate('text', label=paste('umbrae_s: ', round(umbrae_s, 5)), x=as.Date('2020-07-01'), y=max(diff(serie))*0.8) +
             scale_x_date(breaks='3 month') +
             scale_y_continuous(name="Novas mortes",
                                limits=c(0, NA)) +
@@ -294,11 +426,11 @@ for (uf in unique(resultados$estado)) {
               legend.position = "top") +
               scale_color_manual(values=c('#5555EE', '#FFA0A0', '#363636'))
           linha$obj[[1]]$date <- as.Date(substr(linha$obj[[1]]$date, 1, 10))
-          plot_BF <- ggplot(linha$obj[[1]], aes(date, BF))+
+          plot_BF <- ggplot(linha$obj[[1]], aes(1:(length(serie)), BF))+
             geom_hline(yintercept = c(1/3, 3), linetype=3, col="gray30") +
             geom_hline(yintercept = c(1/20, 20), linetype=2, col="gray30") +
             geom_hline(yintercept = c(1/150, 1, 150), linetype=1, col="gray30") +
-            geom_vline(xintercept = linha$obj[[1]]$date[unified_waves], linetype=1, col='blue') +
+            geom_vline(xintercept = (1:(length(serie)))[unified_waves], linetype=1, col='blue') +
             geom_line(aes(date, BF), col="black", size=1) +
             scale_x_date(name="Date (month/year)",
                          breaks='3 month',
@@ -323,7 +455,7 @@ for (uf in unique(resultados$estado)) {
         }
         ajuste_inicial <- calcula_tend(chute_inicial, 1:(length(serie)))$n
         saz <- linha$saz[[1]]
-        eqm <- linha$eqm
+        umbrae_s <- linha$umbrae_s
         
         df <- as.data.frame(cbind(
           chute=diff(ajuste_inicial),
@@ -336,7 +468,7 @@ for (uf in unique(resultados$estado)) {
           geom_line(aes(color='Real'), size=0.2) +
           geom_line(aes(y=saz, color='Ajuste'), linewidth=0.25) +
           geom_line(aes(y=chute, color='Chute inicial'), linewidth=0.5) +
-          annotate('text', label=paste('EQM: ', round(eqm, 5)), x=100, y=max(diff(serie))*0.8) +
+          annotate('text', label=paste('umbrae_s: ', round(umbrae_s, 5)), x=100, y=max(diff(serie))*0.8) +
           scale_y_continuous(name="Novas mortes",
                              limits=c(0, NA)) +
           theme(
@@ -402,7 +534,7 @@ for (uf in unique(resultados$estado)) {
       #   geom_line(aes(x=t, y=serie, color='Real'), size=0.2) +
       #   geom_line(aes(x=t, y=.data[[metodos_sazonalidade[1]]], color='Ajuste'), linewidth=0.25) +
       #   geom_line(aes(x=t, y=tendencia, color='Tendencia'), linewidth=0.5, linetype = "dashed") +
-      #   annotate('text', label=paste('EQM: ', round(eqm_mg, 5)), x=100, y=max(diff(serie))*0.8) +
+      #   annotate('text', label=paste('umbrae_s: ', round(umbrae_s_mg, 5)), x=100, y=max(diff(serie))*0.8) +
       #   ylab('Mortes por COVID-19')  +
       #   scale_color_manual(values=c('#5555EE', '#363636', '#FFA0A0'))
       # 
@@ -411,7 +543,7 @@ for (uf in unique(resultados$estado)) {
       #   geom_line(aes(x=t, y=serie, color='Real'), size=0.2) +
       #   geom_line(aes(x=t, y=.data[[metodos_sazonalidade[2]]], color='Ajuste'), linewidth=0.25) +
       #   geom_line(aes(x=t, y=tendencia, color='Tendencia'), linewidth=0.5, linetype = "dashed") +
-      #   annotate('text', label=paste('EQM: ', round(eqm_mp, 5)), x=100, y=max(diff(serie))*0.8) +
+      #   annotate('text', label=paste('umbrae_s: ', round(umbrae_s_mp, 5)), x=100, y=max(diff(serie))*0.8) +
       #   ylab('Mortes por COVID-19')  +
       #   scale_color_manual(values=c('#5555EE', '#363636', '#FFA0A0'))
       # 
@@ -420,7 +552,7 @@ for (uf in unique(resultados$estado)) {
       #   geom_line(aes(x=t, y=serie, color='Real'), size=0.2) +
       #   geom_line(aes(x=t, y=.data[[metodos_sazonalidade[3]]], color='Ajuste'), linewidth=0.25) +
       #   geom_line(aes(x=t, y=tendencia, color='Tendencia'), linewidth=0.5, linetype = "dashed") +
-      #   annotate('text', label=paste('EQM: ', round(eqm_mq, 5)), x=300, y=max(diff(serie))*0.8) +
+      #   annotate('text', label=paste('umbrae_s: ', round(umbrae_s_mq, 5)), x=300, y=max(diff(serie))*0.8) +
       #   ylab('Mortes por COVID-19')  +
       #   scale_color_manual(values=c('#5555EE', '#363636', '#FFA0A0'))
       if (nrow(sub_res_kris) != 0 && nrow(sub_res_spline) != 0) {
@@ -447,22 +579,48 @@ for (uf in unique(resultados$estado)) {
     dev.off()
   }
 }
-resumo_metodos <- resultados %>% group_by(cidade, method, pop) %>% summarise(N=n()/4, eqm_min=min(eqm), eqm_prop=min(eqm)/max(eqm), parametro=parametro[eqm==min(eqm, na.rm = T)])
+resumo_metodos <- resultados %>% 
+  filter(umbrae_s != -1) %>% 
+  group_by(cidade, method, pop) %>% 
+  summarise(N=n()/4,
+            umbrae_s_min=min(umbrae_s),
+            umbrae_s_prop=min(umbrae_s)/max(umbrae_s),
+            melhoria_semanal=mean(umbrae_comparison),
+            parametro=parametro[umbrae_s==min(umbrae_s, na.rm = T)]
+            )
 # discretize
 resumo_metodos <- resumo_metodos %>% 
   mutate(categoria=ifelse(pop < 1e4, 'muito pequena', 
                           ifelse(pop < 5e4, 'pequena',
                                  ifelse(pop < 1e5, 'media',
-                                        ifelse(pop < 1e6, 'grande', 'muito grande')))))
+                                        ifelse(pop < 1e6, 'grande', 'muito grande'))))) %>% 
+  mutate(categoria=factor(categoria, levels=c(
+    'muito pequena',
+    'pequena',
+    'media',
+    'grande',
+    'muito grande'
+  )))
+
+resumo_metodos %>%
+# filter(categoria %in% c('muito pequena', 'pequena')) %>% 
+  ggplot() +
+  geom_boxplot(aes(x=categoria, y=melhoria_semanal, fill=method), notch = T) +
+  coord_cartesian(ylim=c(0, 5))
+
 resumo <- resumo_metodos %>% group_by(cidade, method) %>% 
-  filter(eqm==min(eqm)) %>% filter(parametro == min(parametro)) %>% 
+  filter(!is.na(umbrae_s_min)) %>% 
+  # filter(smape==min(smape)) %>% 
+  filter(parametro == min(parametro)) %>% 
   group_by(categoria, method) %>% 
-  summarize(eqm.li=quantile(eqm_min, .25),
-            eqm.ls=quantile(eqm_min, .75),
-            eqm.md=median(eqm_min)
+  summarize(umbrae_s.li=quantile(umbrae_s_min, .25),
+            umbrae_s.ls=quantile(umbrae_s_min, .75),
+            umbrae_s.md=median(umbrae_s_min)
             )
 
 resumo %>% ggplot() +
-  geom_segment(aes(x=eqm.li, xend=eqm.ls, colour=method, y=method, yend=method)) +
-  geom_point(aes(x=eqm.md, y=method, colour=method)) +
+  geom_segment(aes(x=umbrae_s.li, xend=umbrae_s.ls, colour=method, y=method, yend=method)) +
+  geom_point(aes(x=umbrae_s.md, y=method, colour=method)) +
   facet_wrap(~categoria, ncol=5, scales='free_x')
+write.csv(resumo_metodos, './resumo_14_06.csv')
+load('./cenarios_21_06.rds')

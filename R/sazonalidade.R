@@ -2,6 +2,21 @@ library(fpp3)
 library(dplyr)
 
 
+
+sazonalidade_mp <- function(y, t) {
+  saz <- c()
+  termos <- c()
+  for (i in 1:7){
+    ind <- c(rep(F, i-1), T, rep(F, 7-i))
+    dias <- (y / t)[ind]
+    saz_i <- weighted.mean(dias, t[ind])
+    saz <- c(saz, saz_i)
+    termos <- c(termos, saz_i*sum(t[ind]))
+  }
+  saz
+}
+
+
 padroniza_variancia <- function(serie, width=90, invertible=F) {
   # Recebe a série acumulada sem tendencia e retorna a série com variancia padronizada
   serie_diaria <- c(0, diff(serie))

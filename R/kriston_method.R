@@ -33,7 +33,6 @@ Calculate.BF <- function(data.sub, n.wind=14, n.boot=1000){
   BF.ci.ul <- numeric()
   # Loop across time points
   for (i in n.wind:nrow(data.sub)){
-    # Define dataframe
     df[[i]] <- data.frame(time = c(0:(n.wind-1)),
                           raw.cases = data.sub$y[(i-(n.wind-1)):i],
                           log.raw.cases = log(data.sub$y[(i-(n.wind-
@@ -96,8 +95,7 @@ Calculate.BF <- function(data.sub, n.wind=14, n.boot=1000){
       BF.ci.ul[i] <- NA
     }
   }
-  return(data.frame(date=data.sub$date,
-                    cases=data.sub$y,
+  return(data.frame(cases=data.sub$y,
                     # coef.lin,
                     # coef.exp,
                     rsq.lin,
@@ -328,7 +326,7 @@ month", ma.wind=1){
 
 
 kriston_method <- function(data, n.wind=84) {
-  BF.out.3 <- Calculate.BF(data, n.wind=n.wind, n.boot=0)
+  BF.out.3 <- Calculate.BF(data.frame(data), n.wind=n.wind, n.boot=0)
   if (length(na.omit(BF.out.3$BF)) == 0) {
     return(list(minimos=c(1), obj=BF.out.3))
   }
