@@ -2,13 +2,15 @@ library(dplyr)
 library(ggplot2)
 library('COVID19')
 library(splitstackshape)
+source('./src/services/carregar_dados.R')
 library(ggpubr)
 source('./metrics.R')
 library(SimDesign)
 library(purrr)
 source('./sazonalidade.R')
+source('./tendencia.R')
 
-
+set.seed(42)
 # Amostra cidades para analisar:
 x <- covid19(country=c('Brazil'), level=3, verbose=F, vintage = "2023-09-30")
 x <- x %>% 
@@ -42,7 +44,7 @@ names(n_h) <- c(
   'grande',
   'muito grande'
 )
-amostra_piloto <- cidades %>% stratified('categoria', round(n_h), replace=F)
+amostra_piloto <- cidades %>% stratified('categoria', pmax(round(n_h), 1), replace=F)
 saveRDS(amostra_piloto, './locais.rds')
 rm(cidades, amostra_piloto, n_h, Nh, Wh, n, N)
 
@@ -74,9 +76,6 @@ locais$y_diff <- locais$y %>% lapply(function(y) diff(y))
 locais$pop <- locais$dados %>% lapply(function(dados) dados$population[1])
 locais$date <- locais$dados %>% lapply(function(dados) dados$date)
 
-end.time <- Sys.time()
-time.taken <- end.time - start.time
-print(time.taken)
 
 
 hiperparametros <- createDesign(method=c('splines_method'),
@@ -108,7 +107,15 @@ cenarios <- cenarios %>%
 cenarios$t_diff <- cenarios$fit_tendencia %>% 
   lapply(function(t) tryCatch(diff(t$tendencia),
                               error=function(err) as.character(err)))
-
+cenarios$loglik <- cenarios$fit_tendencia %>% 
+  lapply(function(t) tryCatch(t$loglik,
+                              error=function(err) as.character(err)))
+cenarios$aic <- cenarios$fit_tendencia %>% 
+  lapply(function(t) tryCatch(t$aic,
+                              error=function(err) as.character(err)))
+cenarios$bic <- cenarios$fit_tendencia %>% 
+  lapply(function(t) tryCatch(t$bic,
+                              error=function(err) as.character(err)))
 cenarios <- cenarios %>% 
   mutate(saz=map2(y_diff, t_diff, 
                   function(y, t) {
@@ -208,7 +215,15 @@ cenarios <- cenarios %>%
 cenarios$t_diff <- cenarios$fit_tendencia %>% 
   lapply(function(t) tryCatch(diff(t$tendencia),
                               error=function(err) as.character(err)))
-
+cenarios$loglik <- cenarios$fit_tendencia %>% 
+  lapply(function(t) tryCatch(t$loglik,
+                              error=function(err) as.character(err)))
+cenarios$aic <- cenarios$fit_tendencia %>% 
+  lapply(function(t) tryCatch(t$aic,
+                              error=function(err) as.character(err)))
+cenarios$bic <- cenarios$fit_tendencia %>% 
+  lapply(function(t) tryCatch(t$bic,
+                              error=function(err) as.character(err)))
 cenarios <- cenarios %>% 
   mutate(saz=map2(y_diff, t_diff, 
                   function(y, t) {
@@ -419,6 +434,13 @@ gera_grafico.fn <- function(cen, date_, y, method) {
     
     mad.mean.daily.nls <- cen.param[cen.param$opt == 'nls', 'mad.mean.daily'][[1]][[1]]
     mad.mean.daily.nloptr <- cen.param[cen.param$opt == 'nloptr', 'mad.mean.daily'][[1]][[1]]
+    
+    aic.nls <- cen.param[cen.param$opt == 'nls', 'aic'][[1]][[1]]
+    aic.nloptr <- cen.param[cen.param$opt == 'nloptr', 'aic'][[1]][[1]]
+    
+    bic.nls <- cen.param[cen.param$opt == 'nls', 'bic'][[1]][[1]]
+    bic.nloptr <- cen.param[cen.param$opt == 'nloptr', 'bic'][[1]][[1]]
+    
     umbrae_res <- umbrae(y, y_hat.nloptr, y_hat.nls)
     y_hat.0 <- diff(cen.param[!cen.param$erro][1, 'chute_inicial'][[1]][[1]])
     df <- data.frame('Real'=cumsum(y),
@@ -445,8 +467,22 @@ gera_grafico.fn <- function(cen, date_, y, method) {
                     '\n MAD/mean normal (**):', ifelse(is.numeric(mad.mean.daily.nls),
                                                   round(mad.mean.daily.nls, 5), NA),
                     '\n * / **: ', round(mad.mean.daily.nloptr / mad.mean.daily.nls, 5)),
-        x=as.Date('2022-10-01'),
-        y=sum(y)*0.5
+        x=as.Date('2023-02-01'),
+        y=sum(y)*0.2
+      ) +
+      annotate(
+        'text',
+        label=paste('AIC binomial:', ifelse(is.numeric(aic.nloptr),
+                                                        round(aic.nloptr, 5), NA),
+                    '\n AIC normal:', ifelse(is.numeric(aic.nls),
+                                                       round(aic.nls, 5), NA),
+                    '\n BIC binomial:', ifelse(is.numeric(bic.nloptr),
+                                            round(bic.nloptr, 5), NA),
+                    '\n BIC normal:', ifelse(is.numeric(bic.nls),
+                                             round(bic.nls, 5), NA)
+                    ),
+        x=as.Date('2020-09-01'),
+        y=sum(y)*0.8
       ) +
       ggtitle(paste(method, 'com parametro', p))
     plot
@@ -492,8 +528,7 @@ plots <- by(locais,
             gera_pagina.fn(cenarios_splines, 'Splines'))
 
 
-plots
-pdf(paste('./splines.pdf', sep=''),
+pdf(paste('./splines__.pdf', sep=''),
     width=18, height=12)
 plots
 dev.off()
@@ -504,8 +539,13 @@ cenarios_kriston$erro <- is.na(cenarios_kriston$mad.mean.cummulative)
 plots <- by(locais,
             seq_len(nrow(locais)),
             gera_pagina.fn(cenarios_kriston, 'Kriston'))
-plots
-pdf(paste('./kriston.pdf', sep=''),
+
+pdf(paste('./kriston_.pdf', sep=''),
     width=18, height=12)
 plots
 dev.off()
+
+# Kriston 4 semanas
+# Splines: Cidades até pequenas: 7 gl diario
+# Outras: 25gl diario
+# Só binomial

@@ -35,7 +35,11 @@ ajusta_modelo <- function(serie, N, chutes, pop, optimization_method='nloptr') {
   tempo <- 1:length(serie)
   if (N == 0) {
     fit <- drm(serie~tempo, fct=LL.3())
-    return(fit$coefficients)
+    return(list(param=fit$coefficients,
+                loglik=logLik(fit)[1],
+                aic=AIC(fit),
+                bic=BIC(fit)
+                ))
   }
   factors <- sapply(1:N, FUN=function(i){paste('I(d',i,'/(1+exp(b',i,'*(log(x)-log(e',i,')))))', sep='')})
   model_formula <- reformulate(termlabels = factors, response = 'y')
@@ -53,13 +57,23 @@ ajusta_modelo <- function(serie, N, chutes, pop, optimization_method='nloptr') {
       N = pop
     )
     names(fit$solution) <- names(chutes)
-    return(fit$solution)
+    loglik <- -fit$eval_f(fit$solution)
+    k <- N*3
+    return(list(param=fit$solution,
+                loglik=loglik,
+                aic=2*k - 2*loglik,
+                bic=k*log(length(serie)) - 2*loglik
+                ))
   } else {
     ctrl <- nls.control(maxiter = 50000, warnOnly=T,tol = 1e-8)
     fit <- nls(model_formula,
                dados,
                start=chutes, control = ctrl, algorithm='port', model=FALSE)
-    return(summary(fit)$parameters[,'Estimate'])
+    return(list(param=summary(fit)$parameters[,'Estimate'],
+                loglik=logLik(fit)[1],
+                aic=AIC(fit),
+                bic=BIC(fit)
+                ))
   }
 }
 
@@ -83,6 +97,10 @@ estima_tendencia <- function(serie,
                        pop,
                        optimization_method
                        )
+  loglik <- fit$loglik
+  aic <- fit$aic
+  bic <- fit$bic
+  fit <- fit$param
   if (params) {
     # Como manter estavel para quando ajusto só pelo drm e quando ajusto pelo nls??
     if (length(minimos) > 0) {
@@ -90,6 +108,9 @@ estima_tendencia <- function(serie,
       return(list(tendencia=calcula_tend(fit, t)$n,
                   params=fit,
                   chutes=chute_inicial,
+                  loglik=loglik,
+                  aic=aic,
+                  bic=bic,
                   obj=obj))
     }
     ipi <- t(as.data.frame(fit))
@@ -97,6 +118,9 @@ estima_tendencia <- function(serie,
     return(list(tendencia=calcula_tend(fit, t)$n,
                 params=ipi['fit',],
                 chutes=ipi['fit',],
+                loglik=loglik,
+                aic=aic,
+                bic=bic,
                 obj=obj))
   }
   return(calcula_tend(fit, t)$n)
