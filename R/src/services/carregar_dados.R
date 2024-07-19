@@ -3,7 +3,6 @@ library(dplyr)
 #-----------------------------------------------------------------------------------------------
 
 # Carregar Dados Salvos(até 2023-09-30)
-dados_pais <- read.csv('dados/pais/dados_pais.csv')
 
 #-----------------------------------------------------------------------------------------------
 
@@ -22,7 +21,7 @@ corrige <- function(df, variavel){
 
 # Carregar dados especificados(cidade, estado ou pais)
 carregar_dados <- function(est, cid, date_slider, variavel, pad_ = FALSE) {
-  
+  dados_pais <- read.csv('dados/pais/dados_pais.csv')
   if (is.null(est) || est == '') {
     df <- dados_pais %>%
       filter(date >= date_slider[1], date <= date_slider[2])

@@ -31,12 +31,17 @@ chutes_iniciais <- function(serie, N, minimos) {
   return(ip)
 }
 
-ajusta_modelo <- function(serie, N, chutes, pop, optimization_method='nloptr') {
+ajusta_modelo <- function(serie,
+                          N,
+                          chutes,
+                          pop,
+                          loss=binomial_loglik_loss) {
   tempo <- 1:length(serie)
   if (N == 0) {
     fit <- drm(serie~tempo, fct=LL.3())
     return(list(param=fit$coefficients,
                 loglik=logLik(fit)[1],
+                # file:///home/lucas/Downloads/b97636.pdf pg 90: correção para amostras pequenas, nesse caso, se existir mais de 8 ondas
                 aic=AIC(fit),
                 bic=BIC(fit)
                 ))
@@ -44,37 +49,26 @@ ajusta_modelo <- function(serie, N, chutes, pop, optimization_method='nloptr') {
   factors <- sapply(1:N, FUN=function(i){paste('I(d',i,'/(1+exp(b',i,'*(log(x)-log(e',i,')))))', sep='')})
   model_formula <- reformulate(termlabels = factors, response = 'y')
   dados <- data.frame(y=serie, x=tempo)
-  if (optimization_method=='nloptr') {
-    fit <- nloptr(
-      x0=chutes,
-      eval_f=binomial_loglik,
-      opts = list("algorithm" = "NLOPT_LN_SBPLX",
-                  "xtol_rel"=1.0e-8,
-                  "print_level"=0,
-                  "maxeval"=5000),
-      y = serie,
-      x = tempo,
-      N = pop
-    )
-    names(fit$solution) <- names(chutes)
-    loglik <- -fit$eval_f(fit$solution)
-    k <- N*3
-    return(list(param=fit$solution,
-                loglik=loglik,
-                aic=2*k - 2*loglik,
-                bic=k*log(length(serie)) - 2*loglik
-                ))
-  } else {
-    ctrl <- nls.control(maxiter = 50000, warnOnly=T,tol = 1e-8)
-    fit <- nls(model_formula,
-               dados,
-               start=chutes, control = ctrl, algorithm='port', model=FALSE)
-    return(list(param=summary(fit)$parameters[,'Estimate'],
-                loglik=logLik(fit)[1],
-                aic=AIC(fit),
-                bic=BIC(fit)
-                ))
-  }
+  fit <- nloptr(
+    x0=chutes,
+    eval_f=loss,
+    # talvez trocar o algoritmo por NLOPT_LN_BOBYQA ou usar algum algoritmo de otimização global?
+    opts = list("algorithm" = "NLOPT_LN_SBPLX",
+                "xtol_rel"=1.0e-8,
+                "print_level"=0,
+                "maxeval"=5000),
+    y = serie,
+    x = tempo,
+    N = pop
+  )
+  names(fit$solution) <- names(chutes)
+  loglik <- -fit$eval_f(fit$solution)
+  k <- N*3
+  return(list(param=fit$solution,
+              loglik=loglik,
+              aic=2*k - 2*loglik,
+              bic=k*log(length(serie)) - 2*loglik
+              ))
 }
 
 estima_tendencia <- function(serie,
@@ -84,7 +78,7 @@ estima_tendencia <- function(serie,
                              param=50,
                              wcmethod='splines_method',
                              dates=c(), 
-                             optimization_method='nloptr') {
+                             loss=binomial_loglik_loss) {
   wave_counts <- wave_count(wcmethod, serie, param, weekly, dates)
   obj <- wave_counts$obj
   minimos <- wave_counts$minimos
@@ -95,7 +89,7 @@ estima_tendencia <- function(serie,
                        length(minimos), 
                        chutes_iniciais(serie, length(minimos), minimos)[1,],
                        pop,
-                       optimization_method
+                       loss=loss
                        )
   loglik <- fit$loglik
   aic <- fit$aic

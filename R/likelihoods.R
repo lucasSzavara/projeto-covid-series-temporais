@@ -1,4 +1,4 @@
-binomial_loglik <- function(theta, y, x, N) {
+binomial_loglik_loss <- function(theta, y, x, N) {
   
   Nn <- length(theta) / 3
   b <- theta[seq(1, Nn * 3, by=3)]
