@@ -662,7 +662,7 @@ cenarios %>% filter(!erro) %>%
 
 
 cenarios$n_ondas <- 0
-cenarios[!cenarios$erro, 'n_ondas'] <- cenarios[!cenarios$erro,]$fit_tendencia %>%
+cenarios[!cenarios$erro,]$n_ondas <- cenarios[!cenarios$erro,]$fit_tendencia %>%
   lapply(FUN=function(fit) {
     tryCatch({
         return(length(fit$params) / 3)
@@ -702,6 +702,8 @@ cenarios_gpd <- merge(
   by=c('administrative_area_level_2', 'administrative_area_level_3')
 )
 
+(unlist(cenarios_gpd$n_ondas.x) - unlist(cenarios_gpd$n_ondas.y)) %>% hist()
+
 cenarios_gpd <- cenarios_gpd %>% 
   filter(!erro.x) %>% 
   mutate(
@@ -718,7 +720,6 @@ cenarios_gpd %>%
   geom_boxplot() +
   facet_grid(.~categoria)
 
-
 cenarios_gpd %>% 
   ggplot(aes(y=bic.diff)) +
   geom_boxplot() +
@@ -727,9 +728,8 @@ cenarios_gpd %>%
 cenarios_gpd <- cenarios_gpd %>% 
   mutate(
     lambda=-2 *(as.numeric(loglik.x) - as.numeric(loglik.y)),
-    df=3 * (n_ondas.y - n_ondas.x)
+    df=3 * (as.numeric(n_ondas.y) - as.numeric(n_ondas.x))
   )
-
 cenarios_gpd <- cenarios_gpd %>%
   mutate(
     h0=if_else(lambda > 0,
@@ -756,20 +756,21 @@ cenarios_gpd <- cenarios_gpd %>%
 # Turuçu: Umbrae indica que Spline é melhor, mas não rejeitamos H0
 cenarios_gpd[cenarios_gpd$h0 != 'Modelo com mais parâmetros tem verossimilhança menor',]$significante %>% 
   mean()
-cenarios$n_ondas %>% hist()
-cenarios$n_ondas %>% summary()
+
+cenarios$n_ondas %>% as.numeric() %>%  hist()
+cenarios$n_ondas %>% as.numeric() %>% summary()
 counts <- cenarios %>% 
   group_by(categoria, method, n_ondas) %>% 
   summarise(count=n())
 
 medias <- counts %>%
   group_by(categoria, method) %>% 
-  summarise(media=weighted.mean(n_ondas, count),
-            mediana=median(rep(n_ondas, times=count))
+  summarise(media=weighted.mean(as.numeric(n_ondas), count),
+            mediana=median(rep(as.numeric(n_ondas), times=count))
   )
 
 counts %>% 
-  ggplot(aes(x=factor(n_ondas), y=count)) +
+  ggplot(aes(x=factor(as.numeric(n_ondas)), y=count)) +
   geom_bar(stat='identity') +
   geom_text(aes(label=count), vjust=-0.25) +
   geom_vline(data=medias, aes(xintercept = media + 1, colour = 'Média')) +
