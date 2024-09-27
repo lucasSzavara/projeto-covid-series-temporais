@@ -13,5 +13,6 @@ R/src/server/graficos/.Rhistory
 *.pdf
 *.csv
 *.png
+*.pds
 *.html
 !acf_agrupados.pdf
