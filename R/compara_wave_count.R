@@ -8,6 +8,8 @@ source('./metrics.R')
 library(SimDesign)
 library(purrr)
 library(stats)
+library(ggforce)
+library(latex2exp)
 source('./sazonalidade.R')
 source('./tendencia.R')
 
@@ -887,3 +889,111 @@ pdf(paste('./compara.pdf', sep=''),
     width=18, height=12)
 plots
 dev.off()
+theme_set(theme_linedraw())
+library(forecast)
+
+# Gráficos para análise de autocorrelação usando Diferenciação
+graficos_residuos.fn <- function() {
+  fn <- function(linha) {
+    serie <- linha$y_diff[[1]]
+    datas <- linha$date[[1]][16:length(linha$date[[1]])]
+    y_diario <- serie %>% log1p()
+    y_diff <- diff(y_diario)
+    y_diff <- diff(y_diff, lag = 7)
+    # y_diff <- diff(y_diff, lag = 6)
+    estado <- linha$administrative_area_level_2
+    cidade <- linha$administrative_area_level_3
+    categoria <- linha$categoria
+    populacao <- linha$population
+    df <- tibble(
+      "Dados Originais"=serie[15:length(serie)],
+      'Resíduo'=y_diff,
+      'Data'=datas,
+    )
+    serie_original <- df %>%
+      ggplot(aes(x=Data)) +
+      geom_point(aes(y=`Dados Originais`, color='Real'), alpha=0.3) +
+      theme(legend.position = 'none') +
+      scale_color_manual(values=c('#363636')) +
+      ylab('Y')
+    residuos <- df %>%
+      ggplot(aes(x=Data)) +
+      geom_point(aes(y=`Resíduo`, color='Resíduo'), alpha=0.3) +
+      theme(legend.position = 'none') +
+      scale_color_manual(values=c('#363636')) +
+      ggtitle('Resíduo') +
+      ylab(unname(TeX('$(log1p(Y_t) - log1p(Y_{t-1})) - (log1p(Y_{t-7}) - log1p(Y_{t-7-1}))$')))
+    
+    acf <- ggAcf(y_diff, lag.max=50)
+    pacf <- ggPacf(y_diff, lag.max=50)
+    grafico <- ggarrange(serie_original,
+                          residuos,
+                          acf,
+                          pacf, nrow = 2, ncol = 2)
+    annotate_figure(
+      grafico,
+      top = text_grob(
+        paste(categoria, '-', estado, cidade),
+        size = 14
+      )
+    )
+  }
+  return(fn)
+}
+
+cenarios_kriston <- cenarios_kriston %>%
+  arrange(population) %>% 
+  filter(!erro)
+pdf('./residuos_kriston_diff.pdf', width=18, height = 12)
+by(cenarios_kriston, seq_len(nrow(cenarios_kriston)), graficos_residuos.fn())
+dev.off()
+
+# pdf('./residuos_kriston_acumulado.pdf', width=18, height = 12)
+# by(cenarios_kriston, seq_len(nrow(cenarios_kriston)), graficos_residuos.fn(T))
+# dev.off()
+
+cenarios_splines <- cenarios_splines %>%
+  arrange(population) %>% 
+  filter(!erro)
+pdf('./residuos_splines_diff.pdf', width=18, height = 12)
+by(cenarios_splines, seq_len(nrow(cenarios_splines)), graficos_residuos.fn())
+dev.off()
+
+# pdf('./residuos_splines_acumulado.pdf', width=18, height = 12)
+# by(cenarios_splines, seq_len(nrow(cenarios_splines)), graficos_residuos.fn(T))
+# dev.off()
+
+y_diario <- guarulhos$y_diff[[1]] %>% log1p()
+y_diff <- diff(y_diario)
+y_diff <- diff(y_diff, lag = 7)
+# plot(y_diff, type='l')
+# plot(diff(y_diff))
+acf(y_diff) # pacf
+acf(y_diff %>% diff()) # pacf
+
+n <- guarulhos$population
+p <- guarulhos$y_hat[[1]] / n
+res <- (guarulhos$y_diff[[1]] - n*p) / sqrt(n*p*(1-p))
+acf(res)
+
+a <- cenarios_kriston$fit_tendencia %>% lapply(FUN=function(fit) {
+  params <- fit$params
+  Nn <- length(params) / 3
+  -params[seq(1, Nn * 3, by=3)]
+})
+b <- unlist(a)
+summary(b)
+quantile(b, 0.95)
+summary(b[(b > 0) & (b < quantile(b, 0.95))])
+hist(b[b < quantile(b, 0.95)], xlim=c(0, 215), breaks=c(-400, 0:215))
+library(MASS)
+fitted <- fitdistr(b[(b > 5) & (b < quantile(b, 0.95))], 'weibull')
+curve(dweibull(x,
+             fitted$estimate[1],
+             fitted$estimate[2]),
+      from=0,
+      to=200,
+      add=T,
+      col='red',
+      lwd=2,
+      n=200)

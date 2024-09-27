@@ -14,10 +14,14 @@ cenarios <- readRDS('cenarios_amostrados_compara_kriston_splines.rds')
 cenarios <- cenarios %>% 
   filter(!erro) 
 cenarios <- cenarios %>% 
-  mutate(residuo=map2(y_diff, y_hat, 
-                  function(y, y_hat) {
-                    tryCatch(
-                      y_hat - y,
+  mutate(residuo=map(y_diff, 
+                  function(y) {
+                    tryCatch({
+                      y_diario <- y %>% log1p()
+                      y_diff <- diff(y_diario)
+                      y_diff <- diff(y_diff, lag = 7)
+                      y_diff
+                      },
                       error=function(err) as.character(err)
                     )
                   }, .progress = list(
@@ -121,16 +125,26 @@ cenarios_splines %>%
 cenarios_splines$autocorr %>% mean()
 
 # Dendograma
-autocor <- cenarios_kriston$residuo %>% lapply(FUN=function(res) (res %>% acf(plot = F, lag.max = 365))$acf)
+autocor <- cenarios_kriston$residuo %>% lapply(FUN=function(res) (res %>% acf(plot = F, lag.max = 50))$acf)
 autocor_df <- as.data.frame(do.call(rbind, autocor))
-colnames(autocor_df) <- 1:366
+autocorp <- cenarios_kriston$residuo %>% lapply(FUN=function(res) (res %>% pacf(plot = F, lag.max = 50))$acf)
+autocorp_df <- as.data.frame(do.call(rbind, autocorp))
+colnames(autocor_df) <- 0:50
+colnames(autocorp_df) <-  paste('p', 1:50)
+autocor_df$tipo <- 'ACF'
 autocor_df$cidade <- cenarios_kriston$administrative_area_level_3
 autocor_df$estado <- cenarios_kriston$administrative_area_level_2
 autocor_df$categoria <- cenarios_kriston$categoria
+autocor_df <- autocor_df[, -c(1)]
 
-distancias <- autocor_df[, -c(52, 53, 54)] %>% dist(diag=T)
+distancias <- cbind(autocor_df[, -c(52, 53, 54, 51)], autocorp_df) %>%
+  dist(diag=T)
+autocorp_df$tipo <- 'PACF'
+autocorp_df$cidade <- cenarios_kriston$administrative_area_level_3
+autocorp_df$estado <- cenarios_kriston$administrative_area_level_2
+autocorp_df$categoria <- cenarios_kriston$categoria
 hc <- hclust(distancias, method='ward.D')
-k <- 30
+k <- 6
 colors = rainbow(k)
 groups <- cutree(hc, k=k)
 plot(as.phylo(hc), tip.color = colors[groups], type='tidy', direction='downwards',
@@ -144,29 +158,66 @@ cenarios_kriston %>% ggplot(aes(x=grupo, y=population)) +
   geom_boxplot()
 
 autocor_df$grupo <- factor(groups)
-autocor_df_longo <- autocor_df %>% pivot_longer(cols=`2`:`366`,
+autocorp_df$grupo <- factor(groups)
+colnames(autocorp_df) <-  c(1:50, 'tipo', 'cidade', 'estado', 'categoria', 'grupo')
+autocor_t_df <- rbind(autocor_df, autocorp_df)
+autocor_df_longo <- autocor_t_df %>% pivot_longer(cols=`1`:`50`,
                             names_to = 'lag',
                             values_to = 'autocorrelacao')
 
 autocor_df_longo$lag <- autocor_df_longo$lag %>% as.integer()
 lags <- unique(autocor_df_longo$lag)
-pdf('kriston_acf_agrupados.pdf',
+pdf('acf_agrupados.pdf',
     width=18, height=12)
 for (var in unique(autocor_df_longo$grupo)) {
-  grafico <- autocor_df_longo %>% 
-    filter(grupo == var) %>% 
+  df.cidades <- autocor_df_longo%>% 
+    filter(grupo == var)
+  cidades <- df.cidades[, c('cidade', 'estado')] %>% unique()
+  n_por_cidades <- cidades %>% 
+    apply(1, FUN=function(cid) {
+      (cenarios_kriston %>%
+        filter((administrative_area_level_3 == cid[1]) &
+                 (administrative_area_level_2 == cid[2])))$residuo[[1]] %>% 
+        length()
+    })
+  n_max <- n_por_cidades %>% max()
+  n_media <- n_por_cidades %>% sum()
+  n_cidades <- cidades$cidade %>% 
+    length()
+  grafico_acf <- df.cidades %>%
+    filter(tipo == 'ACF') %>% 
     ggplot(aes(x=as.factor(lag), y=autocorrelacao)) +
     # geom_boxplot(alpha=0.2) +
-    geom_line(aes(color=cidade, group = cidade), alpha=0.5) +
-    geom_point(aes(color=cidade), alpha=0.5, size=2) +
-    stat_summary(fun=mean, color='#EEAA00', size=3) +
+    geom_point(aes(color=cidade), alpha=0.2, size=2) +
+    stat_summary(fun=mean, color='#EEAA00', size=1) +
     geom_abline(slope=0, intercept=0) +
     theme(axis.text.x = element_text(angle = 270, vjust = 0.5, hjust=1)) +
-    scale_x_discrete(breaks=lags[(2:366 -1) %% 7 == 0]) +
-    theme(legend.position="bottom")
-  saveWidget(grafico %>% ggplotly(),
-             paste('kriston_grupo_', var, '.html', sep=''))
-  # print(grafico)
+    scale_x_discrete(breaks=lags[(2:51 -1) %% 7 == 0]) +
+    geom_abline(slope=0, intercept=qnorm(0.025) / sqrt(n_max), linetype = 'dashed') +
+    geom_abline(slope=0, intercept=-qnorm(0.025) / sqrt(n_max), linetype = 'dashed') +
+    geom_abline(slope=0, intercept=qnorm(0.025) / sqrt(n_media), linetype = 'dotted') +
+    geom_abline(slope=0, intercept=-qnorm(0.025) / sqrt(n_media), linetype = 'dotted') +
+    theme(legend.position="none") +
+    ylab('ACF')
+  grafico_pacf <- df.cidades %>%
+    filter(tipo == 'PACF') %>% 
+    ggplot(aes(x=as.factor(lag), y=autocorrelacao)) +
+    # geom_boxplot(alpha=0.2) +
+    geom_point(aes(color=cidade), alpha=0.2, size=2) +
+    stat_summary(fun=mean, color='#EEAA00', size=1) +
+    geom_abline(slope=0, intercept=0) +
+    theme(axis.text.x = element_text(angle = 270, vjust = 0.5, hjust=1)) +
+    scale_x_discrete(breaks=lags[(2:51 -1) %% 7 == 0]) +
+    geom_abline(slope=0, intercept=qnorm(0.025) / sqrt(n_max), linetype = 'dashed') +
+    geom_abline(slope=0, intercept=-qnorm(0.025) / sqrt(n_max), linetype = 'dashed') +
+    geom_abline(slope=0, intercept=qnorm(0.025) / sqrt(n_media), linetype = 'dotted') +
+    geom_abline(slope=0, intercept=-qnorm(0.025) / sqrt(n_media), linetype = 'dotted') +
+    theme(legend.position="none") +
+    ylab('PACF')
+  grafico <- ggarrange(grafico_acf, grafico_pacf, legend='bottom', common.legend = T)
+  # saveWidget(grafico %>% ggplotly(),
+  #            paste('grupo_', var, '.html', sep=''))
+  print(grafico)
 }
 dev.off()
 
@@ -220,3 +271,4 @@ for (var in unique(autocor_df_longo$grupo)) {
   print(grafico)
 }
 dev.off()
+

@@ -5,13 +5,11 @@ library(dplyr)
 
 sazonalidade_mp <- function(y, t) {
   saz <- c()
-  termos <- c()
   for (i in 1:7){
     ind <- c(rep(F, i-1), T, rep(F, 7-i))
     dias <- (y / t)[ind]
     saz_i <- weighted.mean(dias, t[ind])
     saz <- c(saz, saz_i)
-    termos <- c(termos, saz_i*sum(t[ind]))
   }
   saz
 }
