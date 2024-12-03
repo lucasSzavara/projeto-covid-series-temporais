@@ -92,3 +92,136 @@ res <- runSimulation(Design_1, replications = 5, generate=Generate,
 
 
 write.csv(res, './simulacao.csv')
+
+
+source('./tendencia.R')
+library("ggplot2")
+library(dplyr)
+library("parallel")
+library(tidyr)
+library(data.table)
+library(FAdist)
+
+options(mc.cores = 4)
+
+n_ondas <- 2
+mu <- rep(0, 1200)
+d.sd <- c(5e5, 1e6)
+e.true <- c(160, 700)
+b.true <- c(3, 10)
+s.original <- c(1, 1, 1, 1.1, 1.03, 0.2, 0.25)
+s.true <- s.original / mean(s.original)
+d.true <- d.sd # exp(mean(log(s.true)))
+p <- 0
+q <- 1
+Q <- 1
+theta <- c(-0.8)
+theta.s <- c(-0.7)
+phi <- c()
+mu.ws <- rep(0, 1200)
+for (k in 1:n_ondas) {
+  trend <- d.sd[k] * dllog(1:1200, 1 / b.true[k], log(e.true[k]))
+  mu <- mu + s.true * trend
+  mu.ws <- mu.ws + trend
+}
+plot(1:1200, mu)
+
+g <- function(a) log(a / (1 - a))
+g.inv <- function(g) exp(g) / (1 + exp(g))
+
+y <- c()
+y[1] <- rbinom(1, 4e7, mu[1] / 4e7)
+eta <- c(g(mu[1] / 4e7))
+
+for (i in 2:1200) {
+  # i <- 2
+  eta[i] <- g(mu[i] / 4e7)
+  for (j in 1:min(q, i - 1)) {
+    # j <- 1
+    y_ <- min(max(y[i - j], 0.5), 4e7 - 0.5)
+    eta[i] <- eta[i] + theta[j] * (g(y_/ 4e7) - eta[i - j])
+  }
+  
+  if (i >= 8) {
+    for (j in 1:min(Q, i - 1)) {
+      # j <- 1
+      y_ <- min(max(y[i - 7*j], 0.5), 4e7 - 0.5)
+      eta[i] <- eta[i] + theta.s[j] * (g(y_/ 4e7) - eta[i - 7*j])
+    }
+  }
+  
+  y[i] <- rbinom(1, 4e7, g.inv(eta[i]))
+}
+plot(1:1200, y)
+
+fit <- estima_tendencia(cumsum(y), 4e7, params = T, param = 25)
+fit$tendencia %>% plot()
+
+x <- data.frame(real = y,
+                ajuste = c(1, diff(fit$tendencia)),
+                t=1:length(y),
+                mu=mu,
+                mu.ws=mu.ws
+                )
+x %>% 
+  ggplot(aes(x=t)) +
+  geom_point(aes(y = real), alpha=0.3) +
+  geom_line(aes(y = mu, colour = 'Mu')) +
+  geom_line(aes(y = mu.ws, colour = 'Tendência')) +
+  geom_line(aes(y = ajuste, colour = 'Ajuste'))
+
+d.fit <- c(fit$params['d1'], fit$params['d2'])
+
+source('./sazonalidade.R')
+sazonalidade <- sazonalidade_mp(y, x$ajuste)
+sazonalidade / mean(sazonalidade) # exp(mean(log(sazonalidade)))
+s.true
+d.fit
+d.true
+sum(y)
+sum(d.true)
+sum(d.fit)
+
+x$y_hat <- x$ajuste * sazonalidade
+x %>% 
+  ggplot(aes(x=t)) +
+  geom_point(aes(y = real), alpha = 0.3) +
+  geom_line(aes(y = y_hat, colour = 'Ajuste sazonal')) +
+  geom_line(aes(y = ajuste, colour = 'Ajuste'))
+
+x$residuo <- (x$real - x$y_hat) / sqrt(x$y_hat*(1-x$y_hat/4e7))
+x %>% ggplot(aes(y=residuo, x=t)) +
+  geom_point()
+x %>% ggplot(aes(x=residuo)) +
+  geom_histogram(aes(y = after_stat(density))) +
+  stat_function(
+    fun = dnorm,
+    lwd = 1, 
+    col = 'red'
+  )
+
+library(car)
+library(forecast)
+
+qqPlot(x$residuo)
+
+x$residuo %>% ggAcf()
+x$residuo %>% ggPacf()
+
+residuo.diff <- x$real %>%
+  log1p() %>% 
+  diff() %>% 
+  diff(lag = 7)
+data.frame(residuo=residuo.diff) %>% ggplot(aes(x=residuo)) +
+  geom_histogram(aes(y = after_stat(density))) +
+  stat_function(
+    fun = dnorm,
+    lwd = 1, 
+    col = 'red'
+  )
+
+qqPlot(residuo.diff)
+
+residuo.diff %>% ggAcf()
+residuo.diff %>% ggPacf()
+

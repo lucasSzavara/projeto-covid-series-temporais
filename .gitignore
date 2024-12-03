@@ -16,3 +16,8 @@ R/src/server/graficos/.Rhistory
 *.pds
 *.html
 !acf_agrupados.pdf
+*.log
+*.RData
+*.RDataTmp
+*.Rhistory
+*.tex

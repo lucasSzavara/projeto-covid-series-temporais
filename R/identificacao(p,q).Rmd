@@ -1,0 +1,293 @@
+---
+title: "Sobre o problema da identificação de p e q em séries epidemioloógicas"
+author: 
+- Lucas dos Santos Rodrigues Szavara
+output:
+  pdf_document:
+    extra_dependencies: amsmath
+  html_document:
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+# Introdução
+Anteriormente no nosso trabalho tínhamos proposto examinar a
+autocorrelação de $Y^*$, de acordo com a Equação \ref{eq:yest}, em que
+$Y_t$ é a série diária. Notem que, apesar da diferenciação funcionar
+para remover tendências, caso $Y_t$ seja independente, $Y^*$ será uma
+série MA(1) x SMA(1), exatamente como os resultados usados para agrupar
+cidades.
+
+```{=tex}
+\begin{equation} \label{eq:yest}
+Y^*_t = (log(Y_t + 1) - log(Y_{t-1} + 1)) - (log(Y_{t - 7} + 1) - log(Y_{t-7-1} + 1)) = (1 - B^7) (1 - B) log(Y_t + 1)
+\end{equation}
+```
+Para exemplificar esse problema, vamos gerar dados independentes de uma
+distribuição Poisson e aplicar essa fórmula:
+
+```{r}
+library(dplyr)
+library(forecast)
+set.seed(42)
+residuo.diff <- rpois(1000, 100) %>%
+  log1p() %>%
+  diff() %>%
+  diff(lag = 7)
+
+residuo.diff %>% ggAcf()
+residuo.diff %>% ggPacf()
+```
+
+Temos exatamente o mesmo comportamento geral que identificamos nas
+cidades. Um argumento que pode ser feito é que no caso das cidades,
+temos dados com tendência e sazonalidade. Vamos gerar dados
+independentes dessa forma, e verificar os resultados:
+
+```{r warning=FALSE}
+
+set.seed(42)
+
+s.true <- c(2, 1, 2, 1, 1, 0.2, 0.3)
+s.true <- s.true / mean(s.true)
+p <- 0
+q <- 0
+n_ondas <- 2
+pop <- 4e7
+d.true <- c(2e4, 3e4)
+e.true <- c(160, 500)
+b.true <- c(3, 20)
+theta.true <- c()
+prec.true <- 50
+P <- 0
+Q <- 1
+source('./gera_dados.R')
+dados <- gera.dados.negbin(
+  d.true,
+  e.true,
+  b.true,
+  s.true,
+  theta.true,
+  c(),
+  1200,
+  pop,
+  prec.true
+)
+
+
+y <- dados$y
+mu <- dados$mu
+eta <- dados$eta
+eps <- dados$epsilon
+library(ggplot2)
+data.frame(
+  x = 1:1200,
+  deaths = y,
+  media = mu
+) %>% ggplot(aes(x = x)) +
+  geom_point(aes(y = deaths), alpha = 0.3)
+```
+
+Usando esse gerador temos dados similares aos reais. Note que a lista
+dos valores reais de $\theta$ é vazia. Vamos examinar o que acontece ao
+fazer o mesmo procedimento anterior:
+
+```{r}
+residuo.diff <- y %>%
+  log1p() %>%
+  diff() %>%
+  diff(lag = 7)
+
+residuo.diff %>% ggAcf()
+residuo.diff %>% ggPacf()
+residuo.diff %>% plot()
+```
+
+Novamente, encontramos o mesmo comportamento. Isso pode parecer
+surpreendente, mas note que metade da série tem tendência desprezível.
+Vamos examinar o que acontece se removermos o final da série da nossa
+análise:
+
+```{r}
+residuo.diff <- y[1:600] %>%
+  log1p() %>%
+  diff() %>%
+  diff(lag = 7)
+
+residuo.diff %>% ggAcf()
+residuo.diff %>% ggPacf()
+```
+
+Ainda assim, o mesmo acontece. Vamos investigar se talvez os dados
+realmente tenham uma autodependência. No código, a variável $\mu$ é o
+componente determinístico da esperança dos dados, enquanto $e ^ \eta$ é
+o componente determinístico e temporal da série. Consequentemente,
+$log(\mu) - \eta$ deve ser diferente de 0 para indicar algum efeito
+temporal
+
+```{r}
+(log(mu) - eta) %>% summary()
+```
+
+# Nova proposta
+Essa diferença sempre é 0, indicando que a dependência temporal não
+existe. Para confirmar isso, vamos analisar $\frac{Y_t}{e^{\eta_t}}$,
+que é equivalente a $exp(log(Y_t) - \eta_t)$, sendo $log(Y_t) - \eta_t$
+a função de médias móveis proposta no artigo que propõe o modelo GARMA
+quando a função de ligação g() é a log() (desconsiderando casos em que
+$Y_t = 0$).
+
+## Hipótese
+
+No caso em que $Y_t$ é uma série independente,
+$g(Y_t) - \eta_t = g(Y_t) - g(\mu_t)$ e essa série é também
+independente, se $Y_t$ vem de um modelo GARMA(0, q), então
+$g(Y_t) - g(\mu_t)$ também pode ser representado por uma modelo GARMA(0, q), enquanto $g(Y_t) - \eta_t$ é independente.
+
+```{r}
+(y/mu)[1:600] %>% ggAcf()
+(y/mu)[1:600] %>% ggPacf()
+(y/mu)[1:600] %>% plot()
+```
+
+É possível notar alguma noção de autodependência, vamos remover o começo
+dos dados, onde podemos notar uma grande variação no resíduo
+
+```{r}
+(y/mu)[50:600] %>% ggAcf()
+(y/mu)[50:600] %>% ggPacf()
+```
+
+Agora, removendo os períodos da série em que o resíduo se comporta de
+forma anômala, vemos que a série de fato é independente. O que acontece
+se repetirmos a análise, usando agora dados realmente autodependentes?
+
+```{r warning=FALSE}
+
+set.seed(42)
+
+theta.true <- c(-0.8)
+source('./gera_dados.R')
+dados <- gera.dados.negbin(
+  d.true,
+  e.true,
+  b.true,
+  s.true,
+  theta.true,
+  c(),
+  1200,
+  pop,
+  prec.true
+)
+
+
+y <- dados$y
+mu <- dados$mu
+eta <- dados$eta
+eps <- dados$epsilon
+
+data.frame(
+  x = 1:1200,
+  deaths = y,
+  media = mu
+) %>% ggplot(aes(x = x)) +
+  geom_point(aes(y = deaths), alpha = 0.3)
+```
+
+Vejamos a autodependência proposta em \ref{eq:yest}:
+
+```{r}
+residuo.diff <- y %>%
+  log1p() %>%
+  diff() %>%
+  diff(lag = 7)
+
+residuo.diff %>% ggAcf()
+residuo.diff %>% ggPacf()
+residuo.diff %>% plot()
+```
+
+Podemos ver algumas diferenças nos Lags que antes eram insignificantes,
+mas o comportamento MA(1)xSMA(1) ainda é bem marcante. Talvez removendo
+o inicio e fim da série podemos encontrar o padrão verdadeiro?
+
+```{r}
+residuo.diff <- y[50:600] %>%
+  log1p() %>%
+  diff() %>%
+  diff(lag = 7)
+
+residuo.diff %>% ggAcf()
+residuo.diff %>% ggPacf()
+```
+
+Ainda assim, o mesmo acontece. Vamos analisar agora $\frac{Y_t}{\mu_t}$,
+como antes:
+
+```{r}
+(y/mu)[50:600] %>% ggAcf()
+(y/mu)[50:600] %>% ggPacf()
+```
+
+Agora sim, o comportamento esperado de uma série MA(1) pode ser visto.
+Por via das dúvidas, podemos fazer o mesmo procedimento com uma série
+MA(2):
+
+```{r warning=FALSE}
+
+set.seed(42)
+
+theta.true <- c(-0.6, -0.3)
+
+dados <- gera.dados.negbin(
+  d.true,
+  e.true,
+  b.true,
+  s.true,
+  theta.true,
+  c(),
+  1200,
+  pop,
+  prec.true
+)
+
+
+y <- dados$y
+mu <- dados$mu
+eta <- dados$eta
+eps <- dados$epsilon
+
+residuo.diff <- y[50:600] %>%
+  log1p() %>%
+  diff() %>%
+  diff(lag = 7)
+
+residuo.diff %>% ggAcf() + ggtitle('Y*')
+residuo.diff %>% ggPacf() + ggtitle('Y*')
+
+(y/mu)[15:600] %>% ggAcf() + ggtitle('Y_t/mu_t')
+(y/mu)[15:600] %>% ggPacf() + ggtitle('Y_t/mu_t')
+```
+
+Novamente, $\frac{Y_t}{\mu_t}$ nos retorna ACF/PACF que indicam a ordem
+correta, enquanto $Y^*$ nos indicaria um modelo incorreto.
+
+Ainda assim, removendo o seletor do período teríamos uma conclusão muito diferente, podendo indicar até mesmo uma não estacionariedade, de forma similar aos gráficos que obtemos no ínicio, antes de propormos o uso da Equação \ref{eq:yest}
+```{r}
+(y/mu) %>% ggAcf() + ggtitle('Y_t/mu_t')
+(y/mu) %>% ggPacf() + ggtitle('Y_t/mu_t')
+```
+
+# Problemas:
+1. Como automatizar a seleção do período selecionado para identificar p e q?
+2. Cidades pequenas, em que sempre temos muitos dias seguidos com 0 casos vão sempre indicar não estacionariedade, como os últimos 2 gráficos?
+
+# Possíveis soluções:
+1. Usar apenas pontos em que $\hat{\mu}_t > \epsilon$, para algum $\epsilon$ escolhido. (Provavelmente será necessário aplicar esse filtro apenas nas pontas)
+2. Considerar cidades com muitas sequências longas de 0 casos como independentes
+3. Usar apenas análises de simulação com t tais que a $P(Y_t \ge 1) > \epsilon$
+
+# Notas:
+1. A hipótese é de que $g(Y_t) - g(\hat{\mu}_t)$ seria um bom resíduo para estimar a ordem do processo de médias móveis, entretanto o usado foi $g^{-1}(g(Y_t) - g(\hat{\mu}_t))$ para facilitar as contas. Entretanto, como $g^{-1}$ é monótona, duas vezes diferenciável e invertível, deve manter a estrutura de correlação (Hipótese 2). Como no exemplo, $g(x) = log(x)$, seria necessário usar $Y^{'}_t = max(Y_t, c)$, para $c \in (0, 1)$
+2. O artigo que propõe a classe de modelos GARMA sugere o uso do resíduo quantil normalizado, podemos estudar como esse resíduo indica as ordens do modelo GARMA(p, q), mas vale lembrar que esse resíduo exige um modelo completo, não apenas a escolha de g e uma estimativa para $\mu$, o que pode indicar diferentes ordens, dependendo da distribuição $Y_t | \mu_t$ suposta (Hipótese 3)

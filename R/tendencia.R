@@ -50,16 +50,18 @@ ajusta_modelo <- function(serie,
   model_formula <- reformulate(termlabels = factors, response = 'y')
   dados <- data.frame(y=serie, x=tempo)
   fit <- nloptr(
-    x0=chutes,
+    x0=c(chutes, pop * 10),
     eval_f=loss,
-    # talvez trocar o algoritmo por NLOPT_LN_BOBYQA ou usar algum algoritmo de otimização global?
+    lb=c(rep(c(-Inf, 0, 0), times=N), 0),
+    ub=c(rep(c(-1, Inf, Inf), times=N), Inf),
     opts = list("algorithm" = "NLOPT_LN_SBPLX",
                 "xtol_rel"=1.0e-8,
                 "print_level"=0,
                 "maxeval"=5000),
     y = serie,
     x = tempo,
-    N = pop
+    N = pop,
+    Nn = N
   )
   names(fit$solution) <- names(chutes)
   loglik <- -fit$eval_f(fit$solution)

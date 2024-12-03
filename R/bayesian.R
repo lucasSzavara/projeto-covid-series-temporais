@@ -1,4 +1,4 @@
-library(renv)
+update.packages( ask=FALSE, checkBuilt=TRUE )
 library(COVID19)
 library(dplyr)
 library(INLA)
@@ -18,16 +18,6 @@ x$idx <- 1:nrow(x)
 mod_ <- drm(x$deaths~x$idx, fct=LL.3())
 summary(mod_)
 
-Nn <- 5
-factors <- sapply(1:Nn, FUN=function(i){paste('I(d',i,'/(1+exp(-b',i,'*(log(idx)-log(e',i,')))))', sep='')})
-model_formula <- reformulate(termlabels = factors, response = 'deaths')
-# mod <- inla(
-#   model_formula,
-#   data = x,
-#   family = 'binomial',
-#   Ntrials = population,
-#   verbose = T
-# )
 N <- x$population[1]
 escala <- 1e4
 rgeneric.logit.sums <- function(
@@ -42,7 +32,7 @@ rgeneric.logit.sums <- function(
   library(Matrix)
   
   graph = function() {
-    return (Diagonal(n=n, x=1))
+    return (Diagonal(n=n - 1, x=1))
   }
   
   Q = function() {
@@ -68,43 +58,57 @@ rgeneric.logit.sums <- function(
   }
   
   mu = function() {
-    Nn <- length(theta) / 2
-    d <- exp(theta[seq(1, Nn * 2, by=2)])
-    b <- exp(theta[seq(2, Nn * 2, by=2)])
-    # e <- exp(theta[seq(3, Nn * 3, by=3)])
+    Nn <- length(theta) / 3
+    d <- exp(theta[seq(1, Nn * 3, by = 3)])
+    b <- exp(theta[seq(2, Nn * 3, by = 3)])
+    e <- exp(theta[seq(3, Nn * 3, by = 3)])
+    e <- cumsum(e)
     
     # p <- d / (1 + (x / e) ^ -b)
     p <- 0
-    for(i in 1:length(d)) {
+    for (i in 1:length(d)) {
       p <- p + d[i] / (1 + (t / e[i]) ^ -b[i])
     }
-    return(p)
+    return(diff(p))
   }
   
   log.norm.const = function() {
-    return (numeric(0))
+    return(numeric(0))
   }
   
   log.prior = function() {
-    d.sd <- 1.5
-    b.sd <- 1.5
-    Nn <- length(theta) / 2
-    priori.d <- sum(dnorm(exp(theta[seq(1, Nn * 2, by=2)]),
-                          2e5/Nn/escala, Nn,
-                          log = T))
+    Nn <- length(theta) / 3
+    media <- 1.5 * 2e5/(Nn * escala)
+    variancia <- 1e4 ^ 2
+    
+    alpha <- media^2 / variancia
+    beta <- media / variancia
+    
+    priori.d <- sum(dgamma(
+      exp(theta[seq(1, Nn * 3, by = 3)]),
+      alpha,
+      rate = beta,
+      log = T
+    ))
     # priori.b <- sum(dnorm(theta[seq(2, Nn * 3, by=3)],
     #                       log(3) - b.sd/2, b.sd,
     #                       log=T))
-    priori.b <- sum(dweibull(exp(theta[seq(2, Nn * 2, by=2)]),
-                             1.5, 300.95557,
-                             log=T))
-    # e <- diff(c(0, exp(theta[seq(3, Nn * 3, by=3)])))
-    # priori.e <- sum(dgamma(e,
-    #                        n-100, rate=Nn,
-    #                        log=T))
+    priori.b <- sum(dgamma(exp(theta[seq(2, Nn * 3, by = 3)]),
+                             1.5, 1/100,
+                             log = T))
+    e <- exp(theta[seq(3, Nn * 3, by = 3)])
+    # e <- diff(c(0, es))
+    media <- (n - 100)/Nn
+    variancia <- 30 ^ 2
+    
+    alpha <- media^2 / variancia
+    beta <- media / variancia
+    priori.e <- sum(dgamma(e,
+                           alpha, rate = beta,
+                           log = T))
     # priori.e <- 0
     # return(0)
-    return(priori.d + priori.b)
+    return(priori.d + priori.b + priori.e)
   }
   
   initial = function() {
@@ -128,49 +132,47 @@ x %>% ggplot(aes(x = date)) +
   geom_point(aes(y = deaths), alpha = 0.3) +
   geom_line(aes(y = tendencia * escala, group = 1, colour = 'Estimativa'))
 Nn <- length(params) / 3
-b <- -params[seq(1, Nn * 3, by = 3)]
-d <- params[seq(2, Nn * 3, by = 3)]
-e <- params[seq(3, Nn * 3, by = 3)]
-theta <- 1:(Nn*2)
-ordenacao <- order(e)
-theta[seq(1, Nn * 2, by=2)] <- log(d[ordenacao])
-theta[seq(2, Nn * 2, by=2)] <- log(b[ordenacao])
-# theta[seq(3, Nn * 3, by=3)] <- log(e[ordenacao])
-# Nn <- 4
-# n <- length(x$deaths)
-# theta = rep(c(log(7e5/escala/Nn), log(3), log((n-100) / Nn)), Nn)
-# theta[seq(3, Nn * 3, by=3)] <- log(cumsum(exp(theta[seq(3, Nn * 3, by=3)])))
+b.fit <- -params[seq(1, Nn * 3, by = 3)]
+d.fit <- params[seq(2, Nn * 3, by = 3)]
+e.fit <- params[seq(3, Nn * 3, by = 3)]
+theta <- 1:(Nn*3)
+ordenacao <- order(e.fit)
+theta[seq(1, Nn * 3, by = 3)] <- log(d.fit[ordenacao])
+theta[seq(2, Nn * 3, by = 3)] <- log(b.fit[ordenacao])
+theta[seq(3, Nn * 3, by = 3)] <- log(diff(c(0, e.fit[ordenacao])))
+
+
 model <- inla.rgeneric.define(rgeneric.logit.sums,
                               n = length(x$deaths),
                               t = 1:nrow(x),
                               escala = escala,
                               N = x$population[1],
-                              escala = escala,
-                              theta0 = theta,
-                              e = log(e[ordenacao]))
-# inherits(model, "inla.rgeneric")
-# model$debug
-# is.character(model)
-# do.call(model$definition, args = list(cmd = 'Q', theta = theta))
-# priori.b <- sum(dweibull(exp(theta[seq(2, Nn * 3, by=3)]),
-#                          0.9364877, 30.95557,
-#                          log=T))
+                              theta0 = theta)
+x_diario <- data.frame(deaths = diff(x$deaths),
+                       idx = 1:(nrow(x) - 1))
 mod <- inla(
   deaths / escala ~ -1 + f(idx, model=model),
-  data = x,
+  data = x_diario,
   verbose = T,
-  # control.inla=list(cmin=0),
-  safe=T
+  control.inla = list(
+    int.strategy = 'grid',
+    strategy = 'laplace'
+  ),
+  safe = T,
+  inla.mode='classic'
 )
+mod = inla.hyperpar(mod, verbose = T)
 summary(mod)
-# mod$marginals.hyperpar
-# par <- mod$summary.hyperpar$mean[2] %>% exp()
-# d.marg <- mod$internal.marginals.hyperpar$`Theta1 for idx`
-amostra <- as.data.frame(inla.hyperpar.sample(10000, mod))[, -c(1)]
-d <- exp(amostra[, seq(1, Nn * 2, by = 2)])
-b <- exp(amostra[, seq(2, Nn * 2, by = 2)])
-e <- exp(amostra[, seq(3, Nn * 3, by=3)])
 
+amostrado <- mod$marginals.random$idx %>% lapply(inla.zmarginal)
+amostra <- as.data.frame(inla.hyperpar.sample(10000, mod, improve.marginals = T, intern = T))[, -c(1)]
+d <- exp(amostra[, seq(1, Nn * 3, by = 3)])
+b <- exp(amostra[, seq(2, Nn * 3, by = 3)])
+e <- exp(amostra[, seq(3, Nn * 3, by = 3)])
+library(data.table)
+setDT(e)[,names(e) := Reduce("+", e, accumulate = TRUE)]
+summary(e)
+e <- as.list(e)
 summary(d * escala)
 summary(b)
 if (Nn == 1) {
@@ -183,12 +185,11 @@ if (Nn == 1) {
 # y <- d[1, i] / (1 + (t / e[1, i]) ^ -b[1, i])
 # plot(t, y)
 deaths.marg <- mclapply(x$idx, function(t) {
-  # t <- 1000
   # p <- d / (1 + (x / e) ^ -b)
   p <- 0
   ondas <- data.frame(i=1:10000)
   for (i in 1:Nn) {
-    onda <- d[i] / (1 + (t / e[i]) ^ -b[i])
+    onda <- d[[i]] / (1 + (t / e[[i]]) ^ -b[[i]])
     ondas[i] <- escala * onda
     p <- p + onda
   }
@@ -199,7 +200,7 @@ deaths.marg <- mclapply(x$idx, function(t) {
   ondas.summary <- cbind(indice=rownames(ondas.summary), ondas.summary)
   ondas.summary <- ondas.summary %>%
     pivot_wider(values_from=2:(Nn+1), names_from = 'indice')
-  deaths <- escala * p[, 1]
+  deaths <- escala * p
   # deaths <- escala* exp(amostra$`Theta1 for idx`) / (1 + (x / exp(amostra$`Theta3 for idx`)) ^ -exp(amostra$`Theta2 for idx`))
   qs <- quantile(deaths, probs=c(0.025, 0.5, 0.975))
   qs['Mean'] <- mean(deaths)
@@ -208,11 +209,17 @@ deaths.marg <- mclapply(x$idx, function(t) {
 })
 deaths.marg <- as.data.frame(do.call(rbind, deaths.marg))
 x <- cbind(deaths.marg, x[, c('date','deaths', 'idx', 'population')])
+amostrado2 <- do.call(rbind, amostrado) %>%
+  as.data.frame()
+# x$mean <- amostrado2$mean %>% unlist() * escala
+# x$quant0.975 <- amostrado2$quant0.975 %>% unlist() * escala
+# x$quant0.025 <- amostrado2$quant0.025 %>% unlist() * escala
 x_diff <- data.frame(
   'date'= x$date[2:nrow(x)],
   'deaths'=diff(x$deaths),
   'idx'=1:(nrow(x)-1),
   'Mean'=diff(x$Mean),
+  # 'mean'=diff(x$mean),
   `max`=diff(x$`97.5%`),
   `min`=diff(x$`2.5%`)
 )
@@ -244,36 +251,63 @@ df <- x %>%
 
 df %>% ggplot(aes(x = as.Date(date), y = deaths)) +
   geom_point(alpha=0.03) +
+  # geom_line(aes(y=mean, colour = 'Estimativa Agp')) +
   geom_line(aes(y=Mean, colour = 'Estimativa')) +
   geom_line(aes(y=`waveMean`, colour = Onda, group = Onda)) +
   geom_ribbon(aes(ymin=`wave2.5%`,
                   ymax=`wave97.5%`,
                   colour = Onda, fill=Onda, group=Onda), alpha = 0.2) +
   # geom_line(aes(y=`50%`, colour = 'mediana')) +
+  # geom_ribbon(aes(ymin = quant0.025,
+  #                 ymax = quant0.975,
+  #                 colour='Estimativa Agp', group='Estimativa Agp', fill='Estimativa Agp'), alpha=0.2) +
+  # geom_line(aes(y=`50%`, colour = 'mediana')) +
   geom_ribbon(aes(ymin = `2.5%`,
                   ymax = `97.5%`,
-                  colour='Estimativa', group='Estimativa'), alpha=0.2)
+                  colour='Estimativa', group='Estimativa', fill='Estimativa'), alpha=0.2)
+
+# ((df$deaths >= df$quant0.025) & (df$deaths <= df$quant0.975)) %>% mean()
+((df$deaths >= df$`2.5%`) & (df$deaths <= df$`97.5%`)) %>% mean()
 
 df_diff %>% ggplot(aes(x=date, y=deaths)) +
   geom_point(alpha=0.03) +
-  geom_line(aes(y=Mean, colour = 'Estimativa')) +
-  geom_line(aes(y=waveMean, colour = Onda)) #+
+  # geom_line(aes(y=mean, colour = 'Estimativa Agp', group = 'Estimativa Agp')) +
+  geom_line(aes(y=Mean, colour = 'Estimativa', group = 'Estimativa'), colour = 'black') +
+  geom_line(aes(y=waveMean, colour = Onda, group = Onda)) #+
+  # geom_ribbon(aes(ymin = min,
+  #                 ymax = max,
+  #                 colour='Estimativa Agp', group='Estimativa Agp', fill='Estimativa Agp'), alpha=0.2)
   # geom_ribbon(aes(ymin=wave2.5.,
   #                 ymax=wave97.5.,
   #                 colour = Onda, fill=Onda), alpha=0.05) +
   # geom_line(aes(y=`50%`, colour = 'mediana')) +
-  # geom_ribbon(aes(ymin = min,
-  #                 ymax = max,
-  #                 colour='Estimativa'), alpha=0.2)
+  # 
+(df_diff$mean - df_diff$deaths) %>% summary()
+a <- 1.5
+b <- 1/100
+n <- length(x$deaths)
 
-pnorm(log(200),
-      log(10) - 3/2, 3)
-curve(dnorm(log(x),
-            log(10) - 3/2, 3), from=0, to=1000, n=10000)
-abline(v=mod$summary.hyperpar$mean[5], col='blue')
-abline(v=x$deaths %>% max() %>% log(), col='red', lty=2)
+media <- (n - 100)/Nn
+variancia <- 35 ^ 2
 
-media <- 2e5/Nn
+alpha <- media^2 / variancia
+beta <- media / variancia
 curve(dgamma(x,
-            media * 1/1e4, 1/1e4),
-      from=0,to=1e5, n=1e5)
+                 alpha, rate = beta,), to = 200)
+diff(c(0, e.fit))
+mean(e)
+summary(e %>% as.data.frame())
+
+media <- 1.5 * 2e5/Nn
+variancia <- 1e4 ^ 2
+
+alpha <- media^2 / variancia
+beta <- media / variancia
+
+curve(dgamma(
+  x,
+  alpha,
+  rate = beta
+), to=50000)
+d.fit * escala
+summary(d * escala)
