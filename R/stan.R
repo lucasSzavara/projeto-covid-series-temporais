@@ -28,6 +28,9 @@ library(data.table)
 library(FAdist)
 library(car)
 library(forecast)
+library(cmdstanr)
+
+library(shinystan)
 
 options(mc.cores = 4)
 rstan_options(auto_write = TRUE)
@@ -70,17 +73,19 @@ s.true <- s.true / mean(s.true)
 
 set.seed(42)
 
-p <- 0
-q <- 0
 n_ondas <- 2
 pop <- 4e7
 d.true <- c(2e4, 3e4)
 e.true <- c(160, 500)
 b.true <- c(3, 20)
-theta.true <- c(-0.6, 0, 0, 0, 0, 0, -0.4)
+theta.true <- c()
+phi.true <- c(0.5, 0.1)
 prec.true <- 50
 P <- 0
 Q <- 1
+p <- phi.true %>% length()
+q <- phi.true %>% length()
+n <- 700
 source('./gera_dados.R')
 dados <- gera.dados.negbin(
   d.true,
@@ -88,8 +93,8 @@ dados <- gera.dados.negbin(
   b.true,
   s.true,
   theta.true,
-  c(),
-  1200,
+  phi.true,
+  n,
   pop,
   prec.true
 )
@@ -112,7 +117,7 @@ print(sum(d.true))
 
 # hist(rbbinom(10000, pop, 1e8 * 0.0002, 1e8 *(1 - 0.0002)))
 data.frame(
-  x = 1:1200,
+  x = 1:n,
   deaths = y,
   media = mu
 ) %>% ggplot(aes(x = x)) +
@@ -171,49 +176,123 @@ data.frame(
 (log(pmax(y, 0.5)) - log(mu))[100:600] %>% plot()
 
 # Ajuste:
+# 
+mod <- cmdstan_model('./modelo_stan_tendencia.stan')
 
-init <- 1:n_chains %>% lapply(FUN = function(i) list(
+init <- list(
   b = array(c(5, 5), dim = n_ondas),
   d = array(c(sum(y) / 2, sum(y) / 2), dim = n_ondas),
-  e_ = array(c(300, 600), dim = n_ondas),
-  theta = array(c(-0.3), dim = q),
-  THETA = array(c(-0.3), dim = Q),
+  e_ = array((n - 100) / n_ondas , dim = n_ondas),
+  theta = array(c(0), dim = 0),
+  phi = array(c(0), dim = 5),
   prec = prec.true
-))
-start <- Sys.time()
-fit.stan <- stan(
-  file = 'modelo_stan_tendencia.stan',
-  pars = c('d', 'b', 's_normalized', 'e_cumsum', 'theta', 'phi', 'sigma', 'THETA', 'PHI'),
-  data = list(
-    N = 1200,
-    n_ondas = n_ondas,
-    populacao = 4e7,
-    daily_deaths = y,
-    t = 1:1200,
-    p = p,
-    q = q,
-    S = 7,
-    P = P,
-    Q = Q
-  ),
-  iter = 5000,
-  chains = n_chains,
-  thin = 3,
-  init = init,
-  warmup = 2000,
-  control = list(
-    adapt_delta = 0.99
-  )
 )
-end <- Sys.time()
-print(end - start)
 
-print(fit.stan)
-summary(fit.stan, pars = c(c('d', 'b', 's_normalized', 'e_cumsum', 'theta', 'THETA', 'sigma')))$summary[, c(4, 6, 8)]
-saveRDS(fit.stan, 'fit.stan_2ondas_teste_garma(0,1)X(0, 1)_negbinom.rds')
-fit.stan <- readRDS('fit.stan_2ondas_teste_garma(0,7)_negbinom.rds')
-posterior <- as.array(fit.stan)
-np <- nuts_params(fit.stan)
+data <- list(
+  N = n,
+  n_ondas = n_ondas,
+  populacao = 4e7,
+  daily_deaths = y,
+  t = 1:n,
+  p = 5,
+  q = 0
+)
+
+data.opt <- list(
+  N = n,
+  n_ondas = n_ondas,
+  populacao = 4e7,
+  daily_deaths = y,
+  t = 1:n,
+  p = 0,
+  q = 0
+)
+
+init.opt <- list(
+  b = array(c(5, 5), dim = n_ondas),
+  d = array(c(sum(y) / 2, sum(y) / 2), dim = n_ondas),
+  e_ = array((n - 100) / n_ondas , dim = n_ondas),
+  theta = array(c(0), dim = 0),
+  phi = array(c(0), dim = 0),
+  prec = prec.true
+)
+
+
+opt <- mod$optimize(
+  data = data.opt,
+  seed = 42,
+  init = list(init.opt),
+  jacobian = T
+)
+
+opt$summary(variables = c(
+  'd',
+  'b',
+  'e_cumsum',
+  'sigma',
+  's_normalized'
+)) %>% print(n=30)
+
+# fit.mcmc <- mod$sample(
+#   data = data,
+#   step_size = 0.01,
+#   seed = 42,
+#   init = opt,
+#   chains = 4,
+#   parallel_chains = 4,
+#   adapt_delta = 0.99,
+#   iter_warmup = 1000,
+#   iter_sampling = 1500
+# )
+# fit.mcmc %>% launch_shinystan()
+
+fit.la <- mod$laplace(
+  data = data,
+  # step_size = 0.01,
+  seed = 42,
+  init = opt
+  # mode = opt
+  # chains = 1,
+  # adapt_delta = 0.99,
+  # iter_warmup = 10,
+  # iter_sampling = 10
+)
+opt.completo <- mod$optimize(
+  data = data,
+  seed = 42,
+  init = list(init),
+  jacobian = T,
+  algorithm = 'bfgs',
+  init_alpha = 1e-5
+)
+opt.completo$summary(variables = c(
+  'd',
+  'b',
+  'e_cumsum',
+  'phi',
+  'sigma',
+  's_normalized'
+)) %>% print(n=30)
+media_b = 20 * n_ondas;
+variancia_b = (30 * n_ondas)^2;
+
+alpha_b = media_b ^ 2 / variancia_b;
+beta_b = media_b / variancia_b;
+
+curve(dgamma(x, alpha_b, beta_b), from = 0, to = 100)
+pgamma(100, alpha_b, beta_b)
+
+media_e = (n - 100) / n_ondas;
+variancia_e = 900;
+
+alpha_e = media_e ^ 2 / variancia_e;
+beta_e = media_e / variancia_e;
+curve(dgamma(x, alpha_e, beta_e), from = 0, to = 500)
+pgamma(160, alpha_e, beta_e)
+
+start <- Sys.time()
+posterior <- fit.mcmc$draws()
+np <- nuts_params(fit.mcmc)
 mcmc_trace(posterior, pars=vars(param_range('d', 1:n_ondas)), np = np) + 
   xlab("Post-warmup iteration")
 mcmc_trace(posterior, pars=vars(param_range('e_cumsum', 1:n_ondas)), np = np) + 
