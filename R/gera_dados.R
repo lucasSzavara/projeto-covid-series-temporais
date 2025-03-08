@@ -113,16 +113,20 @@ gera.dados.negbin <- function(d.true, e.true, b.true, s.true, theta, phi, n, pop
   y <- c()
   y[1] <- rnegbin(1, mu[1], prec)
   eta <- c(g(mu[1]))
-  y_ <- max(y[1], 0.5)
+  y_ <- c(max(y[1], 0.5))
   epsilon <- c(g(y_) - eta[1])
   
   for (i in 2:n) {
     # i <- 2
     eta[i] <- g(mu[i])
+    if (p > 0) for (j in 1:min(p, i - 1)) {
+      eta[i] <- eta[i] + phi[j] * (log(y_[i - j]) - g(mu[i - j]))
+    }
     
     if (q > 0) for (j in 1:min(q, i - 1)) {
       eta[i] <- eta[i] + theta[j] * epsilon[i - j]
     }
+    
     
     # if (i >= 8) {
     #   for (j in 1:min(Q, i - 1)) {
@@ -133,8 +137,8 @@ gera.dados.negbin <- function(d.true, e.true, b.true, s.true, theta, phi, n, pop
     # }
     
     y[i] <- rnegbin(1, g.inv(eta[i]), prec)
-    y_ <- max(y[i], 0.5)
-    epsilon[i] <- (g(y_) - eta[i])
+    y_ <- c(y_, max(y[i], 0.5))
+    epsilon[i] <- (g(y_[i]) - eta[i])
   }
   list(y=y, mu=mu, eta=eta, epsilon=epsilon)
 }
