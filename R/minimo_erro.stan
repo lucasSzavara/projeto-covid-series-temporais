@@ -77,8 +77,8 @@ transformed parameters {
     //for (i in 1:N) {
     //  pdf[i] = s_normalized[i % 7 + 1] + loglogistic_lpdf(t[i] | e_cumsum[k], b[k]);
     //}
-    pdf = log(s_rep) + (log(b[k]) - log(e_cumsum[k])) + log((t / e_cumsum[k]) ^ (b[k] - 1)) - log((1 + (t / e_cumsum[k]) ^ b[k]) ^ 2);   // loglogistic_lpdf(t[i] | e_cumsum[k], b[k]);
-    np += exp(log(d[k]) + pdf);
+    pdf = (log(b[k]) - log(e_cumsum[k])) + log((t / e_cumsum[k]) ^ (b[k] - 1)) - log((1 + (t / e_cumsum[k]) ^ b[k]) ^ 2);   // loglogistic_lpdf(t[i] | e_cumsum[k], b[k]);
+    np += exp(log(s_rep) + log(d[k]) + pdf);
   }
 
   vector[N] mu = log(np);
@@ -190,7 +190,7 @@ model {
   real beta_d = media_d / variancia_d;
 
   // print("d beta:", beta_d);
-  d ~ gamma(alpha_d, beta_d);
+//  d ~ gamma(alpha_d, beta_d);
   
   s ~ gamma(10, 100);
   
@@ -222,9 +222,6 @@ model {
   daily_deaths[(max(p, q) + 1):N] ~ neg_binomial_2_log(eta_t[(max(p, q) + 1):N], sigma);
 }
 
-// generated quantities {
-//  vector[N] y_test;
-//  for(i in 1:N) {
-//    y_test[i] = neg_binomial_2_logrng(inv_logit(alpha + beta*x_test[i]));
-//  }
-// }
+generated quantities {
+  array[N] int y_gen = neg_binomial_2_log_rng(eta_t, sigma);
+}
