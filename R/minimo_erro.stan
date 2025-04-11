@@ -23,6 +23,22 @@ functions {
     y[(K*N + 1):length] = x[1:mod];
     return y;
   }
+
+  vector a_b(int a, int b) {
+      vector[b - a] vec;
+      for (i in a:b) {
+          vec[b - i + 1] = i;
+      }
+      return vec;
+  }
+
+  real cdf_neg_binomial_type2(int y, real mu, real sigma) {
+      vector[y] y0 = a_b(0, y);
+      vector[y] inv_beta_term = tgamma(y0 + mu / sigma) ./ (tgamma(mu / sigma) * tgamma(y0 + 1));
+      vector[y] term = pow(sigma / (1 + sigma), y0);
+      real third_term = pow(1 / (1 + sigma), mu / sigma);
+      return sum(inv_beta_term .* term .* third_term);
+  }
 }
 
 // The input data is a vector 'y' of length 'N'.
@@ -38,7 +54,7 @@ data {
 
 transformed data {
   vector[N] daily_deaths_; // = rep_vector(0, N);
-  
+
   for (i in 1:N) {
     daily_deaths_[i] = max([daily_deaths[i], 0.5]);
   }
@@ -53,7 +69,14 @@ parameters {
   vector<lower=0>[7] s;
   vector<lower=-1, upper=1>[p] phi;
   // vector<lower=-1, upper=1>[q] theta;
-  real<lower=0> sigma;
+  // real<lower=0> sigma;
+  real alpha;
+  vector[7] beta;
+  vector[7] alpha_sigma;
+  real beta_sigma;
+  vector[N] lambda;
+  // real<lower=0> kappa;
+  // vector<lower=0, upper=1>[N] p0;
 }
 
 transformed parameters {
@@ -67,7 +90,10 @@ transformed parameters {
     }
   }
   vector[N] s_rep = rep(s_normalized, N);
-  
+  vector[N] beta_rep = rep(beta, N);
+  // vector[N] beta_sigma_rep = rep(beta_sigma, N);
+  vector[N] alpha_sigma_rep = rep(alpha_sigma, N);
+
   // matrix[N, n_ondas] np;
   // vector[N] np = rep_vector(0, N);
   // vector[N] pdf;
@@ -82,7 +108,7 @@ transformed parameters {
   }
 
   vector[N] mu = log(np);
-  
+
   // print(d);
   // for (k in 1:n_ondas) {
   //   if (is_nan(e_cumsum[k]) || is_inf(e_cumsum[k])) {
@@ -107,13 +133,13 @@ transformed parameters {
   //   }
   //   np[, k] = log(d[k]) + pdf;
   // }
-  // 
+  //
   // vector[N] mu;
   // for (i in 1:N) {
   //   mu[i] = log_sum_exp(np[i]);
   // }
-  
-  
+
+
   // AR:
   vector[N] eta_t = mu;
   eta_t[1:max(p, q)] = log(daily_deaths_[1:max(p, q)]);
@@ -154,7 +180,7 @@ transformed parameters {
 
   // MA:
   // vector[N] epsilon;
-  // 
+  //
   // for (i in (max(p, q) + 1):N) {
   //   epsilon[i] = log(daily_deaths_[i]) - eta_t[i];
   //   for (j in 1:min(i - 1, q)) {
@@ -162,7 +188,7 @@ transformed parameters {
   //   }
   //   // eta_t[i:(i+min(N - i, q))] += theta[1:(min(N - i, q) + 1)] * epsilon[i];
   // }
-  // 
+  //
   // for (i in 1:N) {
   //   for (j in 1:min(i - 1, q)) {
   //     eta_t[i] += theta[j] * epsilon[i - j];
@@ -175,8 +201,14 @@ transformed parameters {
   //   }
   // }
   // vector[N] p_t = exp(eta_t);
+  // var = mu + mu² / sigma
+  // mu² / (var - mu) = sigma
   // vector[N] prob =  p_t * sigma;
-  // vector[N] beta = sigma * (1 - p_t);
+  vector[N] sigma = exp(alpha_sigma_rep + mu * beta_sigma);
+  vector[N] p0 = inv_logit(alpha + mu .* beta_rep);
+  // for (i in 1:N) {
+  //   mu_beta[i] = (mu_beta[i] == 0) * 1e-5 + (mu_beta[i] == 1) * 0.99 + (mu_beta[i] > 0 && mu_beta[i] < 1) * mu_beta[i];
+  // }
 }
 
 // The model to be estimated. We model the output
@@ -191,15 +223,15 @@ model {
 
   // print("d beta:", beta_d);
 //  d ~ gamma(alpha_d, beta_d);
-  
+
   s ~ gamma(10, 100);
-  
+
   // real media_b = 20;
   // real variancia_b = (30)^2;
-  // 
+  //
   // real alpha_b = media_b ^ 2 / variancia_b;
   // real beta_b = media_b / variancia_b;
-  // 
+  //
   // b - 1 ~ gamma(alpha_b, beta_b);
 
   real media_e = (N - 100) / n_ondas;
@@ -208,20 +240,58 @@ model {
   real alpha_e = media_e ^ 2 / variancia_e;
   real beta_e = media_e / variancia_e;
   e_ - 30 ~ gamma(alpha_e, beta_e);
-  // phi ~ normal(0, 2);
+  // phi ~ double_exponential(0, 1);
   // theta ~ normal(0, 2);
-  
+
   real media_s = 50;
   real variancia_s = 10 * 50;
-  
+
   real alpha_s = media_s ^ 2 / variancia_s;
   real beta_s = media_s / variancia_s;
-  sigma ~ gamma(alpha_s, beta_s);
-  
-  
-  daily_deaths[(max(p, q) + 1):N] ~ neg_binomial_2_log(eta_t[(max(p, q) + 1):N], sigma);
+  lambda ~ gamma(1, sigma ^ (1/2.0) .* exp(eta_t) ^ (-1/2.0));
+
+  // p0 ~ beta_proportion(mu_beta, kappa);
+  // kappa ~ gamma(0.01, 0.01);
+
+
+  for(n in (max(p, q) + 1):N) {
+    if (daily_deaths[n] == 0) {
+      target += log_sum_exp(log(p0[n]),
+                            log1m(p0[n])
+                              + poisson_lpmf(daily_deaths[n] | exp(eta_t[n]) * lambda[n]));
+    } else {
+      target += log1m(p0[n])
+                  + poisson_lpmf(daily_deaths[n] | exp(eta_t[n]) * lambda[n]);
+    }
+  }
+
+
+  // target += log(1 - p0) + neg_binomial_2_log_lpmf(daily_deaths[(max(p, q) + 1):N] | eta_t[(max(p, q) + 1):N], sigma);
+
+
+  // daily_deaths[(max(p, q) + 1):N] ~ neg_binomial_2_log(eta_t[(max(p, q) + 1):N], sigma);
 }
 
 generated quantities {
-  array[N] int y_gen = neg_binomial_2_log_rng(eta_t, sigma);
+  array[N] int y_gen;
+  vector[N] residuo_quantil_normalizado;
+
+  for (i in 1:N) {
+    real a_i;
+    real b_i;
+    int e0 = bernoulli_rng(p0[i]);
+    real lambdai = gamma_rng(1, sigma[i] ^ (1 / 2.0) * exp(eta_t[i]) ^ (-1 / 2.0));
+    if (e0 == 1) {
+        y_gen[i] = 0;
+    } else {
+        y_gen[i] = poisson_rng(exp(eta_t[i]) * lambdai);
+    }
+    a_i = cdf_neg_binomial_type2(daily_deaths[i] - 1, exp(eta_t[i]), 1 / sigma[i]);
+    b_i = cdf_neg_binomial_type2(daily_deaths[i], exp(eta_t[i]), 1 / sigma[i]);
+    if (a_i == b_i) {
+      residuo_quantil_normalizado[i] = std_normal_qf(a_i);
+    } else {
+      residuo_quantil_normalizado[i] = std_normal_qf(uniform_rng(a_i, b_i));
+    }
+  }
 }
