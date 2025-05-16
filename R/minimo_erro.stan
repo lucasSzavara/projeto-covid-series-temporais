@@ -9,7 +9,6 @@
 //    https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started
 //
 
-
 functions {
 
   vector rep(vector x, int length) {
@@ -25,20 +24,62 @@ functions {
   }
 
   vector a_b(int a, int b) {
-      vector[b - a] vec;
+      vector[b - a + 1] vec;
+      int j = 1;
       for (i in a:b) {
-          vec[b - i + 1] = i;
+          vec[j] = i;
+          j += 1;
       }
       return vec;
   }
 
-  real cdf_neg_binomial_type2(int y, real mu, real sigma) {
-      vector[y] y0 = a_b(0, y);
-      vector[y] inv_beta_term = tgamma(y0 + mu / sigma) ./ (tgamma(mu / sigma) * tgamma(y0 + 1));
-      vector[y] term = pow(sigma / (1 + sigma), y0);
-      real third_term = pow(1 / (1 + sigma), mu / sigma);
-      return sum(inv_beta_term .* term .* third_term);
+  real cdf_neg_binomial_family(int y, real mu, real sigma, real nu, real p0) {
+      if (y < 0) return 0;
+      real num = inc_beta(
+          y + 1,
+          pow(mu, 2 - nu) / sigma,
+          sigma * pow(mu, nu - 1) / (1 + sigma * pow(mu, nu - 1))
+      );
+      real cdf_binom_neg = 1 - num;
+      cdf_binom_neg = p0 + (1 - p0) * cdf_binom_neg;
+      // real denom = beta(y + 1, pow(mu, 2 - nu) / sigma);
+      return cdf_binom_neg;
+      // vector[y + 1] y0 = a_b(0, y);
+      // vector[y + 1] inv_beta_term = tgamma(y0 + pow(mu, 2 - nu) / sigma) ./ tgamma(y0 + 1);
+      // vector[y + 1] term = pow(sigma * pow(mu, nu - 1), y0);
+      // real constant = pow(1 / (1 + sigma * pow(mu, nu - 1)), pow(mu, 2 - nu) / sigma) / tgamma(pow(mu, 2 - nu) / sigma);
+      // print("Log neg binom");
+      // print(constant);
+      // print(y);
+      // print(mean(term));
+      // print(max(term));
+      // print(mean(inv_beta_term));
+      // print(max(inv_beta_term));
+      // print(sum(inv_beta_term .* term * constant));
+      // return sum(inv_beta_term .* term * constant);
   }
+
+  // real IG_lpdf(vector x, real mu, vector sigma) {
+  //     vector[num_elements (x)] prob;
+  //     real lprob;
+  //     for (i in 1:num_elements(x)) {
+  //         prob[i] = (1/(2*pi()*(sigma[i]^2)*(x[i]^3)))^0.5 * exp(-(x[i] - mu)^2/(2*mu^2*sigma[i]^2*x[i]));
+  //     }
+  //     lprob = sum(log(prob));
+  //     return lprob;
+  // }
+  //
+  // real IG_rng(real mu, real sigma) {
+  //     real nu = normal_rng(0, 1);
+  //     real y = nu ^ 2;
+  //     real lambda = 1 / (sigma^2);
+  //     real x = mu + ((mu^2 * y) / (2*lambda)) - ((mu / (2 * lambda)) * sqrt(4*mu*lambda*y + (mu * y)^2));
+  //     real z = uniform_rng(0, 1);
+  //     if (z <= (mu / (mu + x))) {
+  //         return x;
+  //     }
+  //     return mu^2 / x;
+  // }
 }
 
 // The input data is a vector 'y' of length 'N'.
@@ -73,8 +114,10 @@ parameters {
   real alpha;
   vector[7] beta;
   vector[7] alpha_sigma;
+  // real<lower=0> sigma;
   real beta_sigma;
-  vector[N] lambda;
+  vector<lower=0>[N] lambda;
+  real<lower=0> nu;
   // real<lower=0> kappa;
   // vector<lower=0, upper=1>[N] p0;
 }
@@ -108,37 +151,6 @@ transformed parameters {
   }
 
   vector[N] mu = log(np);
-
-  // print(d);
-  // for (k in 1:n_ondas) {
-  //   if (is_nan(e_cumsum[k]) || is_inf(e_cumsum[k])) {
-  //     print(e_);
-  //   }
-  //   // for (i in 1:N) {
-  //   //  pdf[i] = log(s_rep[i]) + loglogistic_lpdf(t[i] | e_cumsum[k], b[k]);
-  //   // }
-  //   pdf = log(s_rep) + (log(b[k]) - log(e_cumsum[k])) + (b[k] - 1) * (log(t) -log(e_cumsum[k])) - 2 * log_sum_exp(0, b[k] * (log(t) - log(e_cumsum[k])));   // loglogistic_lpdf(t[i] | e_cumsum[k], b[k]);
-  //   for (i in 1:N) {
-  //     if (is_nan(pdf[i]) || is_inf(pdf[i])) {
-  //       print("pdf Onda T=", i);
-  //       print(log(s_normalized));
-  //       print((b[k] - 1) * (log(t) -log(e_cumsum[k])));
-  //       print(log(1 + (t / e_cumsum[k]) ^ b[k]));
-  //       print(s);
-  //       print(b);
-  //       print(e_);
-  //       print(pdf[i]);
-  //       break;
-  //     }
-  //   }
-  //   np[, k] = log(d[k]) + pdf;
-  // }
-  //
-  // vector[N] mu;
-  // for (i in 1:N) {
-  //   mu[i] = log_sum_exp(np[i]);
-  // }
-
 
   // AR:
   vector[N] eta_t = mu;
@@ -204,11 +216,11 @@ transformed parameters {
   // var = mu + mu² / sigma
   // mu² / (var - mu) = sigma
   // vector[N] prob =  p_t * sigma;
-  vector[N] sigma = exp(alpha_sigma_rep + mu * beta_sigma);
+  vector[N] sigma = exp(alpha_sigma_rep + mu .* beta_sigma);
   vector[N] p0 = inv_logit(alpha + mu .* beta_rep);
-  // for (i in 1:N) {
-  //   mu_beta[i] = (mu_beta[i] == 0) * 1e-5 + (mu_beta[i] == 1) * 0.99 + (mu_beta[i] > 0 && mu_beta[i] < 1) * mu_beta[i];
-  // }
+  vector[N] gamma_param = 1 / (sigma .* pow(exp(eta_t), (nu / 2 - 1)));
+  // PIG: IG(1, sigma^(1/2))
+  // vector[N] ig_param = sigma ^ (1/2);
 }
 
 // The model to be estimated. We model the output
@@ -243,16 +255,27 @@ model {
   // phi ~ double_exponential(0, 1);
   // theta ~ normal(0, 2);
 
-  real media_s = 50;
-  real variancia_s = 10 * 50;
+  // real media_s = 50;
+  // real variancia_s = 10 * 50;
+  //
+  // real alpha_s = media_s ^ 2 / variancia_s;
+  // real beta_s = media_s / variancia_s;
+  // mu = 1
+  // sigma_gamma = sqrt(sigma) * exp(eta) ^(nu/2 - 1)
+  // alpha = 1 / sigma_gamma² = 1 / (sigma * exp(eta) ^(nu/2 - 1))
+  // beta_j = mu * sigma_gamma²
+  // beta_j = 1 * sigma
+  // beta = 1 / beta_j = 1/sigma
 
-  real alpha_s = media_s ^ 2 / variancia_s;
-  real beta_s = media_s / variancia_s;
-  lambda ~ gamma(1, sigma ^ (1/2.0) .* exp(eta_t) ^ (-1/2.0));
-
+  lambda ~ gamma(
+      gamma_param,
+      gamma_param
+  );
+  // lambda ~ IG(1, ig_param);
+  alpha_sigma ~ normal(0, 1);
+  nu ~ gamma(20, 20);
   // p0 ~ beta_proportion(mu_beta, kappa);
   // kappa ~ gamma(0.01, 0.01);
-
 
   for(n in (max(p, q) + 1):N) {
     if (daily_deaths[n] == 0) {
@@ -264,34 +287,37 @@ model {
                   + poisson_lpmf(daily_deaths[n] | exp(eta_t[n]) * lambda[n]);
     }
   }
-
-
-  // target += log(1 - p0) + neg_binomial_2_log_lpmf(daily_deaths[(max(p, q) + 1):N] | eta_t[(max(p, q) + 1):N], sigma);
-
-
-  // daily_deaths[(max(p, q) + 1):N] ~ neg_binomial_2_log(eta_t[(max(p, q) + 1):N], sigma);
 }
 
 generated quantities {
   array[N] int y_gen;
   vector[N] residuo_quantil_normalizado;
+  vector[N] b_res;
 
   for (i in 1:N) {
     real a_i;
-    real b_i;
     int e0 = bernoulli_rng(p0[i]);
-    real lambdai = gamma_rng(1, sigma[i] ^ (1 / 2.0) * exp(eta_t[i]) ^ (-1 / 2.0));
+    real lambdai = gamma_rng(gamma_param[i], gamma_param[i]);
     if (e0 == 1) {
         y_gen[i] = 0;
     } else {
         y_gen[i] = poisson_rng(exp(eta_t[i]) * lambdai);
     }
-    a_i = cdf_neg_binomial_type2(daily_deaths[i] - 1, exp(eta_t[i]), 1 / sigma[i]);
-    b_i = cdf_neg_binomial_type2(daily_deaths[i], exp(eta_t[i]), 1 / sigma[i]);
-    if (a_i == b_i) {
+    a_i = cdf_neg_binomial_family(daily_deaths[i] - 1, exp(eta_t[i]), sigma[i], nu, p0[i]);
+    b_res[i] = cdf_neg_binomial_family(daily_deaths[i], exp(eta_t[i]), sigma[i], nu, p0[i]);
+    if (b_res[i] <= a_i) print("b <= a", a_i, b_res[i]);
+    if (a_i < 0) {
+        print("a < 0", a_i);
+    }
+    if (b_res[i] >= 1) {
+        print("b >= 1", b_res[i]);
+    }
+    if (a_i == b_res[i]) {
       residuo_quantil_normalizado[i] = std_normal_qf(a_i);
+      if (is_nan(residuo_quantil_normalizado[i])) print(a_i);
     } else {
-      residuo_quantil_normalizado[i] = std_normal_qf(uniform_rng(a_i, b_i));
+      residuo_quantil_normalizado[i] = std_normal_qf(uniform_rng(a_i, b_res[i]));
+      if (is_nan(residuo_quantil_normalizado[i])) print(a_i, b_res[i]);
     }
   }
 }
